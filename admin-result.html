@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Result Upload - Prime Arena Admin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0e27;color:white;font-family:Arial,sans-serif;padding-bottom:80px}
+.topbar{display:flex;align-items:center;padding:15px;background:#0d1230;border-bottom:1px solid #2a2f4a;position:sticky;top:0;z-index:100;gap:15px}
+.back-btn{font-size:24px;color:white;cursor:pointer}
+.topbar-title{font-size:16px;font-weight:bold;display:flex;align-items:center;gap:8px}
+.admin-badge{background:linear-gradient(135deg,#ff6b00,#ffa500);color:white;font-size:10px;padding:3px 8px;border-radius:10px;font-weight:bold}
+.section-head{padding:15px;font-size:14px;font-weight:bold;color:#ffa500}
+.match-selector{padding:0 15px 15px}
+.match-selector select{width:100%;padding:14px;background:#1a1f3a;border:1px solid #ffa500;border-radius:10px;color:white;font-size:14px;outline:none}
+.info-box{margin:0 15px 15px;background:rgba(255,165,0,.1);border:1px solid #ffa500;border-radius:12px;padding:15px;font-size:12px;color:#ffa500;line-height:1.5}
+.info-box b{color:#fff}
+.match-info{background:#1a1f3a;border-radius:12px;padding:12px;margin:0 15px 15px;border:1px solid #2a2f4a}
+.match-info .row{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;color:#ccc}
+.match-info .row b{color:#ffa500}
+.player-entry{background:#1a1f3a;border-radius:12px;padding:15px;margin:0 15px 12px;border:1px solid #2a2f4a;border-left:4px solid #00c853}
+.entry-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:10px}
+.slot-badge{background:#00c853;color:white;font-size:11px;font-weight:bold;padding:4px 10px;border-radius:6px}
+.player-details{background:#0a0e27;border-radius:8px;padding:10px;margin-bottom:12px}
+.player-details .prow{display:flex;font-size:12px;margin-bottom:4px}
+.player-details .prow:last-child{margin-bottom:0}
+.player-details .plabel{color:#888;width:110px;flex-shrink:0}
+.player-details .pval{color:#fff;font-weight:bold;word-break:break-all}
+.player-details .pval.ign{color:#ffa500}
+.player-details .pval.ph{color:#00e676}
+.player-details .pval.win-bal{color:#ffd700}
+.entry-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.entry-form .full-width{grid-column:1/-1}
+.entry-form label{display:block;font-size:10px;color:#ccc;margin-bottom:5px}
+.entry-form input{width:100%;padding:10px;background:#0a0e27;border:1px solid #2a2f4a;border-radius:8px;color:white;font-size:13px;outline:none}
+.entry-form input:focus{border-color:#ffa500}
+.auto-prize-box{background:rgba(0,200,83,.1);border:1px solid #00c853;border-radius:8px;padding:10px;margin-top:10px;font-size:12px;color:#00e676;text-align:center}
+.auto-prize-box b{color:#fff;font-size:15px}
+.auto-prize-box.rank-1{background:rgba(255,215,0,.15);border-color:#ffd700;color:#ffd700}
+.rank-warning{background:rgba(255,49,49,.15);border:1px solid #ff3131;border-radius:8px;padding:8px;margin-top:8px;font-size:11px;color:#ff6b6b;text-align:center;display:none}
+.rank-warning.show{display:block}
+.team-result-section{margin:0 15px 15px;border-radius:12px;overflow:hidden;border:1px solid #2a2f4a}
+.team-result-header{padding:12px 15px;font-size:14px;font-weight:bold;display:flex;justify-content:space-between;align-items:center}
+.team-result-header.team-a{background:linear-gradient(135deg,#0088cc,#00aaff);color:#fff}
+.team-result-header.team-b{background:linear-gradient(135deg,#ff3131,#ff5252);color:#fff}
+.team-result-body{background:#0f121d;padding:12px}
+.team-player-row{background:#1a1f3a;border-radius:10px;padding:12px;margin-bottom:10px;border-left:3px solid #00c853}
+.team-player-row:last-child{margin-bottom:0}
+.tp-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.tp-slot{background:#00c853;color:#fff;font-size:10px;font-weight:bold;padding:3px 8px;border-radius:5px}
+.tp-ign{font-size:13px;color:#ffa500;font-weight:bold}
+.tp-fields{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.tp-fields label{display:block;font-size:9px;color:#888;margin-bottom:3px;text-transform:uppercase}
+.tp-fields input{width:100%;padding:8px;background:#0a0e27;border:1px solid #2a2f4a;border-radius:6px;color:white;font-size:12px;outline:none}
+.tp-fields input:focus{border-color:#ffa500}
+.winner-section{background:#1a1f3a;border:2px solid #ffd700;border-radius:12px;padding:15px;margin:0 15px 15px}
+.winner-title{font-size:14px;color:#ffd700;font-weight:bold;margin-bottom:12px;text-align:center}
+.winner-options{display:flex;gap:10px;margin-bottom:12px}
+.winner-btn{flex:1;padding:12px;background:#0a0e27;border:2px solid #2a2f4a;border-radius:10px;color:#fff;font-size:13px;font-weight:bold;cursor:pointer;transition:.2s}
+.winner-btn.selected{background:linear-gradient(135deg,#00c853,#00e676);border-color:#00c853}
+.winner-btn.team-a-btn.selected{background:linear-gradient(135deg,#0088cc,#00aaff);border-color:#0088cc}
+.winner-btn.team-b-btn.selected{background:linear-gradient(135deg,#ff3131,#ff5252);border-color:#ff3131}
+.total-prize-input{margin-top:10px}
+.total-prize-input label{display:block;font-size:11px;color:#ccc;margin-bottom:5px}
+.total-prize-input input{width:100%;padding:12px;background:#0a0e27;border:1px solid #ffd700;border-radius:8px;color:#fff;font-size:15px;font-weight:bold;outline:none;text-align:center}
+.quick-actions{display:flex;gap:8px;margin:0 15px 15px}
+.quick-btn{flex:1;padding:10px;background:#1a1f3a;border:1px solid #ffa500;border-radius:8px;color:#ffa500;font-size:11px;font-weight:bold;cursor:pointer}
+.quick-btn:active{transform:scale(.97)}
+.submit-btn{margin:0 15px 20px;width:calc(100% - 30px);padding:16px;background:linear-gradient(135deg,#00c853,#00e676);border:none;border-radius:12px;color:white;font-size:15px;font-weight:bold;cursor:pointer;letter-spacing:1px}
+.submit-btn:disabled{opacity:.5;cursor:not-allowed}
+.empty-state{text-align:center;padding:40px 20px;color:#666}
+.empty-icon{font-size:60px;margin-bottom:15px;opacity:.5}
+.empty-text{font-size:15px;margin-bottom:5px}
+.empty-subtext{font-size:12px;color:#444}
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#00c853;color:white;padding:12px 25px;border-radius:25px;font-size:13px;font-weight:bold;display:none;z-index:2000;max-width:90%;text-align:center}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#0d1230;display:flex;justify-content:space-around;padding:8px 0;border-top:1px solid #2a2f4a;z-index:100}
+.nav-item{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;color:#666;font-size:9px;padding:5px 8px;flex:1}
+.nav-item.active{color:#ffa500}
+.nav-icon{font-size:20px}
+.loading-msg{text-align:center;color:#ffa500;padding:30px;font-size:14px}
+</style>
+</head>
+  <body>
+<div class="topbar">
+<div class="back-btn" onclick="location.href='admin.html'">←</div>
+<div class="topbar-title">Result Upload<span class="admin-badge">ADMIN</span></div>
+</div>
+
+<div class="section-head">SELECT MATCH</div>
+<div class="match-selector">
+<select id="matchSelect" onchange="loadMatchInfo()">
+<option value="">-- Select a match --</option>
+</select>
+</div>
+
+<div class="info-box">
+<b>Important:</b> Player ki current Winning Balance dikh rahi hai. Team mode me Winner Team select karke prize decide karo.
+</div>
+
+<div id="matchInfoBox"></div>
+
+<div class="section-head" id="playerHead" style="display:none">PLAYER RESULTS</div>
+
+<div id="playerEntries">
+<div class="empty-state">
+<div class="empty-icon">📝</div>
+<div class="empty-text">Select a match first</div>
+<div class="empty-subtext">Booked players will appear here automatically.</div>
+</div>
+</div>
+
+<div class="quick-actions" id="quickActions" style="display:none">
+<button class="quick-btn" onclick="autoFillWinner()">Auto-Fill Booyah Winner</button>
+<button class="quick-btn" onclick="clearAllPrizes()">Clear All Prizes</button>
+</div>
+
+<button class="submit-btn" id="submitBtn" style="display:none;" onclick="submitResults()">SUBMIT RESULTS & CREDIT PRIZES</button>
+
+<div class="toast" id="toast">Success!</div>
+
+<div class="bottom-nav">
+<div class="nav-item" onclick="location.href='admin.html'"><span class="nav-icon">🏠</span><span>Dashboard</span></div>
+<div class="nav-item" onclick="location.href='admin-users.html'"><span class="nav-icon">👥</span><span>Users</span></div>
+<div class="nav-item" onclick="location.href='admin-deposits.html'"><span class="nav-icon">💳</span><span>Deposits</span></div>
+<div class="nav-item" onclick="location.href='admin-withdrawals.html'"><span class="nav-icon">💸</span><span>Withdrawals</span></div>
+<div class="nav-item" onclick="location.href='admin-settings.html'"><span class="nav-icon">⚙️</span><span>Settings</span></div>
+  </div>
+  <script>
+var firebaseConfig={apiKey:"AIzaSyC22oO0eveUN3GL9WNtJSzdKghN-X67ZmU",authDomain:"prime-arena-a302b.firebaseapp.com",projectId:"prime-arena-a302b",storageBucket:"prime-arena-a302b.firebasestorage.app",messagingSenderId:"118236794000",appId:"1:118236794000:web:cd0e5bf7503b72f1cf5c15",measurementId:"G-EQJP1D9C92"};
+
+if(!firebase.apps||!firebase.apps.length)firebase.initializeApp(firebaseConfig);
+var db=firebase.firestore();
+
+var allMatches=[];
+var currentMatch=null;
+var bookedPlayers=[];
+var playerCount=0;
+var isTeamMode=false;
+var teamSize=0;
+var selectedWinnerTeam=null;
+
+function esc(s){
+if(s===undefined||s===null)return '';
+return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function isTeam(mode){
+return mode==='Team Duo'||mode==='Team Squad'||mode==='Team 6';
+}
+
+function getTeamSize(mode){
+if(mode==='Team Duo')return 2;
+if(mode==='Team Squad')return 4;
+if(mode==='Team 6')return 6;
+return 0;
+}
+
+function showPopup(title,message,onConfirm,showCancel){
+var popup=document.createElement('div');
+popup.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);display:flex;justify-content:center;align-items:center;z-index:9999;padding:20px';
+var box=document.createElement('div');
+box.style.cssText='background:#1a1f3a;border-radius:15px;padding:25px;width:100%;max-width:350px;border:1px solid #ffa500';
+var titleEl=document.createElement('div');
+titleEl.style.cssText='font-size:18px;font-weight:bold;color:#ffa500;margin-bottom:12px;text-align:center';
+titleEl.textContent=title;
+var msgEl=document.createElement('div');
+msgEl.style.cssText='font-size:14px;color:#ccc;line-height:1.5;margin-bottom:20px;text-align:center;white-space:pre-line';
+msgEl.textContent=message;
+var btnRow=document.createElement('div');
+btnRow.style.cssText='display:flex;gap:10px';
+if(showCancel){
+var cancelBtn=document.createElement('button');
+cancelBtn.textContent='CANCEL';
+cancelBtn.style.cssText='flex:1;padding:14px;background:#2a2f4a;border:none;border-radius:10px;color:white;font-size:14px;font-weight:bold;cursor:pointer';
+cancelBtn.onclick=function(){document.body.removeChild(popup)};
+var confirmBtn=document.createElement('button');
+confirmBtn.textContent='CONFIRM';
+confirmBtn.style.cssText='flex:1;padding:14px;background:linear-gradient(135deg,#00c853,#00e676);border:none;border-radius:10px;color:white;font-size:14px;font-weight:bold;cursor:pointer';
+confirmBtn.onclick=function(){document.body.removeChild(popup);if(onConfirm)onConfirm()};
+btnRow.appendChild(cancelBtn);
+btnRow.appendChild(confirmBtn);
+}else{
+var okBtn=document.createElement('button');
+okBtn.textContent='OK';
+okBtn.style.cssText='flex:1;padding:14px;background:linear-gradient(135deg,#00c853,#00e676);border:none;border-radius:10px;color:white;font-size:14px;font-weight:bold;cursor:pointer';
+okBtn.onclick=function(){document.body.removeChild(popup);if(onConfirm)onConfirm()};
+btnRow.appendChild(okBtn);
+}
+box.appendChild(titleEl);
+box.appendChild(msgEl);
+box.appendChild(btnRow);
+popup.appendChild(box);
+document.body.appendChild(popup);
+}
+
+function loadMatches(){
+db.collection('matches').get().then(function(snapshot){
+allMatches=[];
+snapshot.forEach(function(doc){
+var data=doc.data();
+data.id=doc.id;
+allMatches.push(data);
+});
+allMatches.sort(function(a,b){return new Date(b.createdAt)-new Date(a.createdAt)});
+var select=document.getElementById('matchSelect');
+var html='<option value="">-- Select a match --</option>';
+allMatches.forEach(function(m){
+html+='<option value="'+m.id+'">'+esc(m.title)+' ('+m.status+')</option>';
+});
+select.innerHTML=html;
+});
+}
+
+function loadMatchInfo(){
+var matchId=document.getElementById('matchSelect').value;
+if(!matchId){
+document.getElementById('playerEntries').innerHTML='<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-text">Select a match first</div><div class="empty-subtext">Booked players will appear here automatically.</div></div>';
+document.getElementById('matchInfoBox').innerHTML='';
+document.getElementById('playerHead').style.display='none';
+document.getElementById('quickActions').style.display='none';
+document.getElementById('submitBtn').style.display='none';
+return;
+}
+document.getElementById('playerEntries').innerHTML='<div class="loading-msg">Loading players from slots...</div>';
+db.collection('matches').doc(matchId).get().then(function(doc){
+if(!doc.exists){showPopup('Error','Match not found',null,false);return;}
+currentMatch=doc.data();
+currentMatch.id=doc.id;
+var mode=currentMatch.mode||'Solo';
+isTeamMode=isTeam(mode);
+teamSize=getTeamSize(mode);
+
+var total=parseInt(currentMatch.totalSlots)||0;
+if(!total){
+if(mode==='Solo')total=48;
+else if(mode==='Duo')total=24;
+else if(mode==='Squad')total=12;
+else if(mode==='Team Duo')total=4;
+else if(mode==='Team Squad')total=8;
+else if(mode==='Team 6')total=12;
+else total=48;
+}
+currentMatch.totalSlotsCalc=total;
+return db.collection('matches').doc(matchId).collection('slots').get();
+}).then(function(snap){
+if(!snap){return;}
+bookedPlayers=[];
+var slotList=[];
+snap.forEach(function(sdoc){
+var s=sdoc.data();
+s.slotNum=parseInt(sdoc.id);
+slotList.push(s);
+});
+
+var userPromises = slotList.map(function(p) {
+  if (!p.userId) return Promise.resolve(null);
+  return db.collection('users').doc(p.userId).get().then(function(u) {
+    if (u.exists) {
+      var d = u.data();
+      p.currentWinning = d.winning || 0;
+      p.currentBalance = d.balance || 0;
+      p.currentTotalWins = d.totalWins || 0;
+    } else {
+      p.currentWinning = 0;
+      p.currentBalance = 0;
+      p.currentTotalWins = 0;
+    }
+    return p;
+  }).catch(function() {
+    p.currentWinning = 0;
+    p.currentBalance = 0;
+    p.currentTotalWins = 0;
+    return p;
+  });
+});
+
+return Promise.all(userPromises);
+}).then(function(playersWithData){
+if(!playersWithData){return;}
+bookedPlayers = playersWithData;
+bookedPlayers.sort(function(a,b){return a.slotNum-b.slotNum});
+renderMatchInfo();
+renderPlayers();
+}).catch(function(e){showPopup('Error',e.message,null,false)});
+}
+
+function renderMatchInfo(){
+var m=currentMatch;
+var modeDisplay=m.mode||'Solo';
+if(isTeamMode)modeDisplay=m.mode+' ('+teamSize+' vs '+teamSize+')';
+
+var html='<div class="match-info">'+
+'<div class="row"><span>Match</span><b>'+esc(m.title)+'</b></div>'+
+'<div class="row"><span>Mode</span><b>'+esc(modeDisplay)+'</b></div>'+
+'<div class="row"><span>Entry Fee</span><b>'+esc(m.entryFee)+' coins</b></div>'+
+'<div class="row"><span>Booyah Prize</span><b>'+esc(m.booyahPrize||0)+' coins</b></div>'+
+'<div class="row"><span>Per Kill Prize</span><b>'+esc(m.perKillPrize||0)+' coins</b></div>'+
+'<div class="row"><span>Players Booked</span><b style="color:#00c853">'+bookedPlayers.length+' / '+m.totalSlotsCalc+'</b></div>'+
+'</div>';
+document.getElementById('matchInfoBox').innerHTML=html;
+}
+
+function renderPlayers(){
+var container=document.getElementById('playerEntries');
+document.getElementById('playerHead').style.display='block';
+
+if(bookedPlayers.length===0){
+container.innerHTML='<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">No players booked</div><div class="empty-subtext">Nobody joined this match yet.</div></div>';
+document.getElementById('quickActions').style.display='none';
+document.getElementById('submitBtn').style.display='none';
+return;
+}
+
+container.innerHTML='';
+playerCount=0;
+
+if(isTeamMode){
+var teamAPlayers=[];
+var teamBPlayers=[];
+
+bookedPlayers.forEach(function(p){
+if(p.slotNum<=teamSize){teamAPlayers.push(p);}
+else{teamBPlayers.push(p);}
+});
+
+var winnerHtml='<div class="winner-section">'+
+'<div class="winner-title">🏆 SELECT WINNER TEAM</div>'+
+'<div class="winner-options">'+
+'<button class="winner-btn team-a-btn" data-winner="A" onclick="selectWinner(\'A\')">🔵 TEAM A</button>'+
+'<button class="winner-btn team-b-btn" data-winner="B" onclick="selectWinner(\'B\')">🔴 TEAM B</button>'+
+'</div>'+
+'<div class="total-prize-input">'+
+'<label>TOTAL PRIZE PER PLAYER (COINS)</label>'+
+'<input type="number" id="perPlayerPrize" placeholder="e.g. 50" min="0" value="">'+
+'</div>'+
+'<div style="font-size:11px;color:#888;margin-top:10px;text-align:center;line-height:1.5">Winning team ke har player ko yahi amount milega</div>'+
+'</div>';
+
+container.innerHTML = winnerHtml;
+
+var teamAHtml='<div class="team-result-section">'+
+'<div class="team-result-header team-a">'+
+'<span>🔵 TEAM A</span>'+
+'<span>'+teamAPlayers.length+' / '+teamSize+'</span>'+
+'</div>'+
+'<div class="team-result-body">';
+
+if(teamAPlayers.length===0){
+teamAHtml+='<div style="text-align:center;color:#666;padding:15px;font-size:12px">No players in Team A</div>';
+}else{
+teamAPlayers.forEach(function(p){
+playerCount++;
+var n=playerCount;
+teamAHtml+='<div class="team-player-row">'+
+'<div class="tp-header">'+
+'<div class="tp-slot">SLOT #'+p.slotNum+'</div>'+
+'<div class="tp-ign">'+esc(p.ffIgn||'NO IGN')+'</div>'+
+'</div>'+
+'<div class="player-details">'+
+'<div class="prow"><div class="plabel">Real Name</div><div class="pval">'+esc(p.realName||'-')+'</div></div>'+
+'<div class="prow"><div class="plabel">Mobile</div><div class="pval ph">'+esc(p.mobileNumber||'-')+'</div></div>'+
+'<div class="prow"><div class="plabel">🪙 Winning Balance</div><div class="pval win-bal">'+(p.currentWinning||0)+' coins</div></div>'+
+'</div>'+
+'<div class="tp-fields">'+
+'<div><label>RANK</label><input type="number" id="rank-'+n+'" placeholder="1" min="1"></div>'+
+'<div><label>KILLS</label><input type="number" id="kills-'+n+'" placeholder="0" min="0"></div>'+
+'<div><label>WIN BONUS</label><input type="number" id="prize-'+n+'" placeholder="0" min="0"></div>'+
+'</div>'+
+'<input type="hidden" id="userid-'+n+'" value="'+esc(p.userId)+'">'+
+'<input type="hidden" id="teamslot-'+n+'" value="'+p.slotNum+'">'+
+'<input type="hidden" id="teamname-'+n+'" value="A">'+
+'</div>';
+});
+}
+
+teamAHtml+='</div></div>';
+container.innerHTML += teamAHtml;
+
+var teamBHtml='<div class="team-result-section">'+
+'<div class="team-result-header team-b">'+
+'<span>🔴 TEAM B</span>'+
+'<span>'+teamBPlayers.length+' / '+teamSize+'</span>'+
+'</div>'+
+'<div class="team-result-body">';
+
+if(teamBPlayers.length===0){
+teamBHtml+='<div style="text-align:center;color:#666;padding:15px;font-size:12px">No players in Team B</div>';
+}else{
+teamBPlayers.forEach(function(p){
+playerCount++;
+var n=playerCount;
+teamBHtml+='<div class="team-player-row">'+
+'<div class="tp-header">'+
+'<div class="tp-slot">SLOT #'+(p.slotNum-teamSize)+'</div>'+
+'<div class="tp-ign">'+esc(p.ffIgn||'NO IGN')+'</div>'+
+'</div>'+
+'<div class="player-details">'+
+'<div class="prow"><div class="plabel">Real Name</div><div class="pval">'+esc(p.realName||'-')+'</div></div>'+
+'<div class="prow"><div class="plabel">Mobile</div><div class="pval ph">'+esc(p.mobileNumber||'-')+'</div></div>'+
+'<div class="prow"><div class="plabel">🪙 Winning Balance</div><div class="pval win-bal">'+(p.currentWinning||0)+' coins</div></div>'+
+'</div>'+
+'<div class="tp-fields">'+
+'<div><label>RANK</label><input type="number" id="rank-'+n+'" placeholder="1" min="1"></div>'+
+'<div><label>KILLS</label><input type="number" id="kills-'+n+'" placeholder="0" min="0"></div>'+
+'<div><label>WIN BONUS</label><input type="number" id="prize-'+n+'" placeholder="0" min="0"></div>'+
+'</div>'+
+'<input type="hidden" id="userid-'+n+'" value="'+esc(p.userId)+'">'+
+'<input type="hidden" id="teamslot-'+n+'" value="'+(p.slotNum-teamSize)+'">'+
+'<input type="hidden" id="teamname-'+n+'" value="B">'+
+'</div>';
+});
+}
+
+teamBHtml+='</div></div>';
+container.innerHTML += teamBHtml;
+
+document.getElementById('quickActions').style.display='none';
+document.getElementById('submitBtn').style.display='block';
+
+}else{
+bookedPlayers.forEach(function(p){
+playerCount++;
+var n=playerCount;
+var ign=p.ffIgn||'NOT PROVIDED';
+var rn=p.realName||'NOT PROVIDED';
+var ph=p.mobileNumber||'NOT PROVIDED';
+var slot=p.slotNum;
+var cw=p.currentWinning||0;
+var ctw=p.currentTotalWins||0;
+var h='<div class="player-entry" id="entry-'+n+'" data-slot="'+slot+'">'+
+'<div class="entry-header">'+
+'<div class="slot-badge">SLOT #'+slot+'</div>'+
+'</div>'+
+'<div class="player-details">'+
+'<div class="prow"><div class="plabel">Free Fire IGN</div><div class="pval ign">'+esc(ign)+'</div></div>'+
+'<div class="prow"><div class="plabel">Real Name</div><div class="pval">'+esc(rn)+'</div></div>'+
+'<div class="prow"><div class="plabel">Mobile</div><div class="pval ph">'+esc(ph)+'</div></div>'+
+'<div class="prow"><div class="plabel">🪙 Winning Balance</div><div class="pval win-bal">'+cw+' coins</div></div>'+
+'<div class="prow"><div class="plabel">🏆 Total Wins</div><div class="pval" style="color:#ffd700">'+ctw+'</div></div>'+
+'</div>'+
+'<div class="entry-form">'+
+'<div>'+
+'<label>RANK</label>'+
+'<input type="number" id="rank-'+n+'" placeholder="e.g. 1" min="1" oninput="calcPrize('+n+')">'+
+'</div>'+
+'<div>'+
+'<label>KILLS</label>'+
+'<input type="number" id="kills-'+n+'" placeholder="e.g. 5" min="0" oninput="calcPrize('+n+')">'+
+'</div>'+
+'<div class="full-width">'+
+'<label>BOOYAH / WIN BONUS (COINS)</label>'+
+'<input type="number" id="prize-'+n+'" placeholder="Auto-calculated if rank=1" min="0" oninput="updateAutoPrize('+n+')">'+
+'</div>'+
+'</div>'+
+'<div class="auto-prize-box" id="autoprize-'+n+'" style="display:none">'+
+'Total Prize: <b id="totalval-'+n+'">0</b> coins → New Win Balance: <b id="newbal-'+n+'">'+cw+'</b>'+
+'</div>'+
+'<div class="rank-warning" id="rankwarn-'+n+'">⚠️ Rank 1 दिया — Total Wins +1 होगा</div>'+
+'<input type="hidden" id="userid-'+n+'" value="'+esc(p.userId)+'">'+
+'</div>';
+container.insertAdjacentHTML('beforeend',h);
+});
+document.getElementById('quickActions').style.display='flex';
+document.getElementById('submitBtn').style.display='block';
+}
+}
+
+function selectWinner(team){
+selectedWinnerTeam=team;
+document.querySelectorAll('.winner-btn').forEach(function(b){
+b.classList.remove('selected');
+});
+var btn=document.querySelector('.winner-btn[data-winner="'+team+'"]');
+if(btn)btn.classList.add('selected');
+}
+
+function calcPrize(n){
+var rankEl=document.getElementById('rank-'+n);
+var killsEl=document.getElementById('kills-'+n);
+var prizeEl=document.getElementById('prize-'+n);
+if(!rankEl||!killsEl||!prizeEl)return;
+var rank=parseInt(rankEl.value)||0;
+var booyahPrize=parseInt(currentMatch.booyahPrize)||0;
+if(rank===1 && !prizeEl.value){
+prizeEl.value=booyahPrize;
+}
+if(rank!==1 && prizeEl.value==String(booyahPrize)){
+prizeEl.value='';
+}
+var warnEl=document.getElementById('rankwarn-'+n);
+if(warnEl){
+if(rank===1){warnEl.classList.add('show');}
+else{warnEl.classList.remove('show');}
+}
+updateAutoPrize(n);
+}
+
+function updateAutoPrize(n){
+var rankEl=document.getElementById('rank-'+n);
+var killsEl=document.getElementById('kills-'+n);
+var prizeEl=document.getElementById('prize-'+n);
+var boxEl=document.getElementById('autoprize-'+n);
+var valEl=document.getElementById('totalval-'+n);
+var newBalEl=document.getElementById('newbal-'+n);
+if(!rankEl||!killsEl||!prizeEl||!boxEl||!valEl)return;
+var rank=parseInt(rankEl.value)||0;
+var kills=parseInt(killsEl.value)||0;
+var winPrize=parseInt(prizeEl.value)||0;
+var perKill=parseInt(currentMatch.perKillPrize)||0;
+var total=winPrize+(kills*perKill);
+
+var playerIdx = n - 1;
+var currentWinning = 0;
+if (bookedPlayers[playerIdx]) {
+  currentWinning = bookedPlayers[playerIdx].currentWinning || 0;
+}
+
+boxEl.style.display='block';
+valEl.textContent=total;
+if(newBalEl){
+  newBalEl.textContent = (currentWinning + total);
+}
+if(rank===1){
+  boxEl.classList.add('rank-1');
+} else {
+  boxEl.classList.remove('rank-1');
+}
+}
+
+function autoFillWinner(){
+if(!currentMatch)return;
+if(bookedPlayers.length===0){showPopup('Info','No players to fill',null,false);return;}
+showPopup('Auto-Fill Winner?','Set first player as Booyah winner with '+currentMatch.booyahPrize+' coins?',function(){
+for(var i=1;i<=playerCount;i++){
+var rankEl=document.getElementById('rank-'+i);
+var prizeEl=document.getElementById('prize-'+i);
+if(rankEl)rankEl.value=i===1?'1':'';
+if(prizeEl)prizeEl.value=i===1?currentMatch.booyahPrize:'';
+calcPrize(i);
+updateAutoPrize(i);
+}
+},true);
+}
+
+function clearAllPrizes(){
+showPopup('Clear All?','Clear all rank, kills and prizes?',function(){
+for(var i=1;i<=playerCount;i++){
+var r=document.getElementById('rank-'+i);
+var k=document.getElementById('kills-'+i);
+var p=document.getElementById('prize-'+i);
+if(r)r.value='';
+if(k)k.value='';
+if(p)p.value='';
+var warnEl=document.getElementById('rankwarn-'+i);
+if(warnEl)warnEl.classList.remove('show');
+updateAutoPrize(i);
+}
+},true);
+}
+
+function submitResults(){
+if(!currentMatch){showPopup('Error','Please select a match first',null,false);return;}
+if(bookedPlayers.length===0){showPopup('Error','No players to submit',null,false);return;}
+
+if(isTeamMode){
+if(!selectedWinnerTeam){
+showPopup('Error','Please select Winner Team (A or B) first.',null,false);
+return;
+}
+var perPlayerPrize = parseInt(document.getElementById('perPlayerPrize').value)||0;
+if(perPlayerPrize<=0){
+showPopup('Error','Please enter Per Player Prize amount.',null,false);
+return;
+}
+
+var winnerPlayersCount = 0;
+for(var i=1;i<=playerCount;i++){
+var tm=document.getElementById('teamname-'+i).value;
+if(tm===selectedWinnerTeam)winnerPlayersCount++;
+}
+
+if(winnerPlayersCount===0){
+showPopup('Error','Winner team me koi player nahi hai.',null,false);
+return;
+}
+
+var totalCredits = perPlayerPrize * winnerPlayersCount;
+
+showPopup('Submit Team Results?','Winner: Team '+selectedWinnerTeam+'\nPlayers: '+winnerPlayersCount+'\nPer Player: '+perPlayerPrize+' coins\nTotal: '+totalCredits+' coins\n\nTeam '+selectedWinnerTeam+' ke saare players ko '+perPlayerPrize+' coins milega.',function(){
+document.getElementById('submitBtn').disabled=true;
+document.getElementById('submitBtn').textContent='SUBMITTING...';
+var promises=[];
+for(var i=1;i<=playerCount;i++){
+(function(n){
+var userId=document.getElementById('userid-'+n).value;
+var teamName=document.getElementById('teamname-'+n).value;
+var teamSlot=document.getElementById('teamslot-'+n).value;
+var rank=parseInt(document.getElementById('rank-'+n).value)||0;
+var kills=parseInt(document.getElementById('kills-'+n).value)||0;
+
+if(!userId)return;
+
+var isWinner=(teamName===selectedWinnerTeam);
+var prizeAmount=isWinner?perPlayerPrize:0;
+
+var promise=db.collection('users').doc(userId).get().then(function(ud){
+if(!ud.exists)return;
+var udata=ud.data();
+var cw=udata.winning||0;
+
+var updates={
+  winning: cw + prizeAmount,
+  totalKills: (udata.totalKills||0) + kills,
+  matchesPlayed: (udata.matchesPlayed||0) + 1
+};
+
+if(isWinner && rank===1){
+  updates.totalWins = (udata.totalWins||0) + 1;
+}
+
+return db.collection('users').doc(userId).update(updates).then(function(){
+return db.collection('transactions').add({
+userId:userId,
+type:'match_win',
+amount:prizeAmount,
+status:'completed',
+matchId:currentMatch.id,
+matchTitle:currentMatch.title,
+slotNumber:teamSlot,
+team:teamName,
+rank:rank,
+kills:kills,
+isWinner:isWinner,
+winBonus:prizeAmount,
+perKillBonus:0,
+timestamp:new Date().toISOString()
+});
+});
+});
+promises.push(promise);
+})(i);
+}
+
+Promise.all(promises).then(function(){
+return db.collection('matches').doc(currentMatch.id).update({
+status:'completed',
+completedAt:new Date().toISOString(),
+winnerTeam:selectedWinnerTeam
+});
+}).then(function(){
+document.getElementById('submitBtn').disabled=false;
+document.getElementById('submitBtn').textContent='SUBMIT RESULTS & CREDIT PRIZES';
+showToast('Results submitted! Team '+selectedWinnerTeam+' jeeti.');
+document.getElementById('matchSelect').value='';
+document.getElementById('playerEntries').innerHTML='<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-text">Select a match first</div><div class="empty-subtext">Booked players will appear here automatically.</div></div>';
+document.getElementById('matchInfoBox').innerHTML='';
+document.getElementById('playerHead').style.display='none';
+document.getElementById('quickActions').style.display='none';
+document.getElementById('submitBtn').style.display='none';
+  loadMatches();
+}).catch(function(e){
+showPopup('Error',e.message,null,false);
+document.getElementById('submitBtn').disabled=false;
+document.getElementById('submitBtn').textContent='SUBMIT RESULTS & CREDIT PRIZES';
+});
+},true);
+}
+}
+
+function showToast(msg){
+var toast=document.getElementById('toast');
+toast.textContent=msg;
+toast.style.display='block';
+setTimeout(function(){toast.style.display='none'},3000);
+}
+
+loadMatches();
+</script>
+</body>
+</html>

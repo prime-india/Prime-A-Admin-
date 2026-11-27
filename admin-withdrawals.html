@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Withdrawal Management - Prime Arena Admin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0e27;color:white;font-family:'Arial',sans-serif;padding-bottom:80px;min-height:100vh}
+.topbar{display:flex;align-items:center;padding:15px;background:#0d1230;border-bottom:1px solid #2a2f4a;position:sticky;top:0;z-index:100;gap:15px}
+.back-btn{font-size:24px;color:white;cursor:pointer}
+.topbar-title{font-size:16px;font-weight:bold;color:white;display:flex;align-items:center;gap:8px}
+.admin-badge{background:linear-gradient(135deg,#ff6b00,#ffa500);color:white;font-size:10px;padding:3px 8px;border-radius:10px;font-weight:bold}
+.refresh-btn{background:#2a2f4a;border:none;color:#fff;padding:8px 12px;border-radius:6px;font-size:16px;cursor:pointer;margin-left:auto}
+.filter-tabs{display:flex;padding:15px;gap:8px;overflow-x:auto}
+.filter-tab{padding:10px 18px;background:#1a1f3a;border:1px solid #2a2f4a;border-radius:20px;font-size:12px;color:#ccc;cursor:pointer;white-space:nowrap;font-weight:bold}
+.filter-tab.active{background:linear-gradient(135deg,#ff6b00,#ffa500);color:white;border-color:#ffa500}
+.withdraw-list{padding:0 15px}
+.withdraw-card{background:#1a1f3a;border-radius:12px;padding:15px;margin-bottom:12px;border:1px solid #2a2f4a;border-left:4px solid #6a1b9a}
+.withdraw-card.timer-over{border-left-color:#ff3131}
+.withdraw-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.withdraw-amount{font-size:22px;font-weight:bold;color:#ffa500}
+.withdraw-status{font-size:10px;padding:4px 10px;border-radius:10px;font-weight:bold;text-transform:uppercase}
+.status-pending{background:#ffa500;color:#0a0e27}
+.status-paid{background:#00c853;color:white}
+.status-rejected{background:#ff3131;color:white}
+
+/* ============ USER INFO SECTION (NEW) ============ */
+.user-info-section{background:#0a0e27;border:1px solid #2a2f4a;border-radius:10px;padding:12px;margin-bottom:12px}
+.user-info-section .ui-title{font-size:10px;color:#ffa500;letter-spacing:1px;margin-bottom:8px;font-weight:bold}
+
+.withdraw-details{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;font-size:12px}
+.detail-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.detail-label{color:#666;flex-shrink:0}
+.detail-value{color:#ccc;font-weight:500;word-break:break-all;text-align:right;max-width:65%}
+.detail-value.upi{color:#ffa500;font-family:monospace;letter-spacing:1px}
+.detail-value.method{color:#00c853;font-weight:bold}
+
+.balance-section{background:#0a0e27;border:1px solid #2a2f4a;border-radius:10px;padding:12px;margin-bottom:12px}
+.balance-section.safe{border-color:#00c853;background:rgba(0,200,83,0.08)}
+.balance-section.warning{border-color:#ff3131;background:rgba(255,49,49,0.1)}
+.balance-section .bs-title{font-size:10px;color:#888;letter-spacing:1px;margin-bottom:8px;font-weight:bold}
+.balance-section.safe .bs-title{color:#00c853}
+.balance-section.warning .bs-title{color:#ff3131}
+.balance-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.balance-item{text-align:center}
+.balance-item .bi-label{font-size:9px;color:#666;margin-bottom:3px}
+.balance-item .bi-value{font-size:14px;font-weight:bold;color:#fff}
+.balance-item.winning .bi-value{color:#ffa500}
+.balance-item.deposited .bi-value{color:#00e676}
+.balance-item.total .bi-value{color:#fff}
+.balance-warning-msg{font-size:10px;color:#ff6b6b;text-align:center;margin-top:8px;line-height:1.4}
+.balance-safe-msg{font-size:10px;color:#00e676;text-align:center;margin-top:8px;line-height:1.4;font-weight:bold}
+
+.timer-display{background:#0a0e27;border:2px solid #ffa500;border-radius:10px;padding:10px;margin-bottom:12px;text-align:center}
+.timer-display.over{border-color:#ff3131}
+.timer-display .tlabel{font-size:9px;color:#ffa500;letter-spacing:2px;margin-bottom:5px}
+.timer-display.over .tlabel{color:#ff3131}
+.timer-display .tvalue{font-size:22px;font-weight:bold;color:#fff;font-family:monospace;letter-spacing:2px}
+.timer-display.over .tvalue{color:#ff3131;font-size:16px}
+.timer-display .tsub{font-size:9px;color:#666;margin-top:3px}
+
+.action-buttons{display:flex;gap:10px}
+.paid-btn{flex:1;padding:12px;background:linear-gradient(135deg,#00c853,#00e676);border:none;border-radius:8px;color:white;font-size:13px;font-weight:bold;cursor:pointer}
+.reject-btn{flex:1;padding:12px;background:linear-gradient(135deg,#ff3131,#ff5252);border:none;border-radius:8px;color:white;font-size:13px;font-weight:bold;cursor:pointer}
+.empty-state{text-align:center;padding:60px 20px;color:#666}
+.empty-icon{font-size:60px;margin-bottom:15px;opacity:.5}
+.empty-text{font-size:15px;margin-bottom:5px}
+.empty-subtext{font-size:12px;color:#444}
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#00c853;color:white;padding:12px 25px;border-radius:25px;font-size:13px;font-weight:bold;display:none;z-index:1000;max-width:90%;text-align:center}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#0d1230;display:flex;justify-content:space-around;padding:8px 0;border-top:1px solid #2a2f4a;z-index:100}
+.nav-item{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;color:#666;font-size:9px;padding:5px 8px;flex:1}
+.nav-item.active{color:#ffa500}
+.nav-icon{font-size:20px}
+.popup-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:9999;justify-content:center;align-items:center;padding:20px}
+.popup-overlay.show{display:flex}
+.popup-box{background:#0f121d;border:1px solid #d4af37;border-radius:14px;padding:25px 20px;width:100%;max-width:360px;text-align:center}
+.popup-icon{font-size:45px;margin-bottom:12px}
+.popup-title{color:#fca311;font-size:19px;font-weight:bold;margin-bottom:10px}
+.popup-msg{color:#ccc;font-size:14px;line-height:1.6;margin-bottom:20px;white-space:pre-line}
+.popup-buttons{display:flex;gap:10px}
+.popup-btn{flex:1;padding:13px;border:none;border-radius:10px;font-weight:bold;font-size:14px;cursor:pointer;text-transform:uppercase}
+.popup-btn-cancel{background:#2a2d3e;color:#fff}
+.popup-btn-confirm{background:linear-gradient(135deg,#00c853,#00e676);color:#fff}
+.popup-btn-danger{background:linear-gradient(135deg,#ff3131,#ff5252);color:#fff}
+.loading-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);display:none;justify-content:center;align-items:center;flex-direction:column;z-index:99999}
+.loading-overlay.show{display:flex}
+.spinner{width:60px;height:60px;border:5px solid #1a1f3a;border-top-color:#ffa500;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:15px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{color:#ffa500;font-size:14px;font-weight:bold}
+</style>
+</head>
+<body>
+<div class="topbar">
+<div class="back-btn" onclick="location.href='admin.html'">←</div>
+<div class="topbar-title">Withdrawal Management<span class="admin-badge">ADMIN</span></div>
+<button class="refresh-btn" onclick="loadWithdrawals()">↻</button>
+</div>
+
+<div class="filter-tabs">
+<div class="filter-tab active" onclick="filterWithdrawals('pending', this)">Pending</div>
+<div class="filter-tab" onclick="filterWithdrawals('paid', this)">Paid</div>
+<div class="filter-tab" onclick="filterWithdrawals('rejected', this)">Rejected</div>
+<div class="filter-tab" onclick="filterWithdrawals('all', this)">All</div>
+</div>
+
+<div class="withdraw-list" id="withdrawList">
+<div class="empty-state">
+<div class="empty-icon">⏳</div>
+<div class="empty-text">Loading withdrawals...</div>
+</div>
+</div>
+
+<div class="toast" id="toast">Success!</div>
+
+<div class="popup-overlay" id="customPopup">
+<div class="popup-box">
+<div class="popup-icon" id="popupIcon">⚠️</div>
+<div class="popup-title" id="popupTitle">Confirm</div>
+<div class="popup-msg" id="popupMsg">Message</div>
+<div class="popup-buttons" id="popupButtons"></div>
+</div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+<div class="spinner"></div>
+<div class="loading-text" id="loadingText">Processing...</div>
+</div>
+
+<div class="bottom-nav">
+<div class="nav-item" onclick="location.href='admin.html'"><span class="nav-icon">🏠</span><span>Dashboard</span></div>
+<div class="nav-item" onclick="location.href='admin-users.html'"><span class="nav-icon">👥</span><span>Users</span></div>
+<div class="nav-item" onclick="location.href='admin-deposits.html'"><span class="nav-icon">💳</span><span>Deposits</span></div>
+<div class="nav-item active" onclick="location.href='admin-withdrawals.html'"><span class="nav-icon">💸</span><span>Withdrawals</span></div>
+<div class="nav-item" onclick="location.href='admin-settings.html'"><span class="nav-icon">⚙️</span><span>Settings</span></div>
+</div>
+
+<script>
+var firebaseConfig={apiKey:"AIzaSyC22oO0eveUN3GL9WNtJSzdKghN-X67ZmU",authDomain:"prime-arena-a302b.firebaseapp.com",projectId:"prime-arena-a302b",storageBucket:"prime-arena-a302b.firebasestorage.app",messagingSenderId:"118236794000",appId:"1:118236794000:web:cd0e5bf7503b72f1cf5c15",measurementId:"G-EQJP1D9C92"};
+
+if(!firebase.apps||!firebase.apps.length)firebase.initializeApp(firebaseConfig);
+var db=firebase.firestore();
+
+var currentFilter='pending';
+var allWithdrawals=[];
+var userData={};
+var timerIntervals=[];
+
+function clearAllTimers(){
+timerIntervals.forEach(function(t){clearInterval(t)});
+timerIntervals=[];
+}
+
+function formatTimeRemaining(startTimeStr){
+var start=new Date(startTimeStr).getTime();
+var now=Date.now();
+var total=24*60*60*1000;
+var remaining=total-(now-start);
+if(remaining<=0)return null;
+var h=Math.floor(remaining/(60*60*1000));
+var m=Math.floor((remaining%(60*60*1000))/(60*1000));
+var s=Math.floor((remaining%(60*1000))/1000);
+return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
+
+function startAllTimers(){
+clearAllTimers();
+document.querySelectorAll('[data-timer-for]').forEach(function(el){
+var wId=el.getAttribute('data-timer-for');
+var w=allWithdrawals.find(function(x){return x.id===wId});
+if(!w)return;
+var startTime=w.withdrawTime||w.createdAt;
+if(!startTime)return;
+function update(){
+var rem=formatTimeRemaining(startTime);
+var valEl=el.querySelector('.tvalue');
+var lblEl=el.querySelector('.tlabel');
+if(rem===null){
+el.classList.add('over');
+if(valEl)valEl.textContent='⏰ TIME OVER';
+if(lblEl)lblEl.textContent='DEADLINE CROSSED';
+}else{
+el.classList.remove('over');
+if(valEl)valEl.textContent=rem;
+if(lblEl)lblEl.textContent='बचा हुआ समय';
+}
+}
+update();
+timerIntervals.push(setInterval(update,1000));
+});
+}
+
+function showConfirm(icon,title,msg,btnLabel,btnClass,callback){
+document.getElementById('popupIcon').textContent=icon;
+document.getElementById('popupTitle').textContent=title;
+document.getElementById('popupMsg').textContent=msg;
+var btnRow=document.getElementById('popupButtons');
+btnRow.innerHTML='';
+var cancelBtn=document.createElement('button');
+cancelBtn.textContent='CANCEL';
+cancelBtn.className='popup-btn popup-btn-cancel';
+cancelBtn.onclick=function(){document.getElementById('customPopup').classList.remove('show');};
+var confirmBtn=document.createElement('button');
+confirmBtn.textContent=btnLabel;
+confirmBtn.className='popup-btn '+(btnClass||'popup-btn-confirm');
+confirmBtn.onclick=function(){document.getElementById('customPopup').classList.remove('show');if(callback)callback();};
+btnRow.appendChild(cancelBtn);
+btnRow.appendChild(confirmBtn);
+document.getElementById('customPopup').classList.add('show');
+}
+
+function showAlert(icon,title,msg){
+document.getElementById('popupIcon').textContent=icon;
+document.getElementById('popupTitle').textContent=title;
+document.getElementById('popupMsg').textContent=msg;
+var btnRow=document.getElementById('popupButtons');
+btnRow.innerHTML='';
+var okBtn=document.createElement('button');
+okBtn.textContent='OK';
+okBtn.className='popup-btn popup-btn-confirm';
+okBtn.onclick=function(){document.getElementById('customPopup').classList.remove('show');};
+btnRow.appendChild(okBtn);
+document.getElementById('customPopup').classList.add('show');
+}
+
+function showLoading(text){
+document.getElementById('loadingText').textContent=text||'Processing...';
+document.getElementById('loadingOverlay').classList.add('show');
+}
+function hideLoading(){
+document.getElementById('loadingOverlay').classList.remove('show');
+}
+
+function showToast(msg){
+var t=document.getElementById('toast');
+t.textContent=msg;
+t.style.display='block';
+setTimeout(function(){t.style.display='none'},3000);
+}
+
+async function loadUserData(){
+try{
+var userIds=[];
+allWithdrawals.forEach(function(w){
+if(w.userId&&userIds.indexOf(w.userId)===-1)userIds.push(w.userId);
+});
+var promises=userIds.map(function(uid){
+return db.collection('users').doc(uid).get().then(function(doc){
+if(doc.exists){
+var d=doc.data();
+userData[uid]={
+name:d.name||'Unknown',
+email:d.email||'-',
+phone:d.phone||'-',
+ffIgn:d.ffIgn||'-',
+balance:d.balance||0,
+deposited:d.deposited||0,
+winning:d.winning||0,
+isBlocked:d.isBlocked||false
+};
+}
+});
+});
+await Promise.all(promises);
+}catch(e){
+console.error('User load error:',e);
+}
+}
+
+function loadWithdrawals(){
+db.collection('withdrawals').get().then(function(snapshot){
+allWithdrawals=[];
+snapshot.forEach(function(doc){
+var d=doc.data();
+d.id=doc.id;
+allWithdrawals.push(d);
+});
+allWithdrawals.sort(function(a,b){
+return new Date(b.createdAt||0)-new Date(a.createdAt||0);
+});
+loadUserData().then(function(){
+displayWithdrawals();
+});
+}).catch(function(error){
+document.getElementById('withdrawList').innerHTML='<div class="empty-state"><div class="empty-icon">X</div><div class="empty-text">Error: '+error.message+'</div></div>';
+});
+}
+
+function filterWithdrawals(filter,el){
+currentFilter=filter;
+document.querySelectorAll('.filter-tab').forEach(function(tab){tab.classList.remove('active')});
+el.classList.add('active');
+displayWithdrawals();
+}
+
+function displayWithdrawals(){
+clearAllTimers();
+var list=document.getElementById('withdrawList');
+var filtered=allWithdrawals.filter(function(w){
+if(currentFilter==='all')return true;
+return w.status===currentFilter;
+});
+
+if(filtered.length===0){
+list.innerHTML='<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">No Withdrawals Found</div><div class="empty-subtext">No '+currentFilter+' withdrawals yet.</div></div>';
+return;
+}
+
+var html='';
+filtered.forEach(function(w){
+var date=new Date(w.createdAt);
+var timeStr=date.toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+
+var u=userData[w.userId]||{name:w.userName||'Unknown',email:w.userEmail||'-',phone:'-',ffIgn:'-',balance:0,deposited:0,winning:0};
+
+var isEnough=u.winning>=w.amount;
+var balanceClass=isEnough?'safe':'warning';
+var balanceMsg=isEnough?'✅ User has enough winning balance':'⚠️ WARNING: Not enough winning balance!';
+var balanceMsgClass=isEnough?'balance-safe-msg':'balance-warning-msg';
+
+var balanceHtml='<div class="balance-section '+balanceClass+'">'+
+'<div class="bs-title">USER BALANCE CHECK</div>'+
+'<div class="balance-grid">'+
+'<div class="balance-item total"><div class="bi-label">Total</div><div class="bi-value">'+u.balance+'</div></div>'+
+'<div class="balance-item deposited"><div class="bi-label">Deposited</div><div class="bi-value">'+u.deposited+'</div></div>'+
+'<div class="balance-item winning"><div class="bi-label">Winning</div><div class="bi-value">'+u.winning+'</div></div>'+
+'</div>'+
+'<div class="'+balanceMsgClass+'">'+balanceMsg+'</div>'+
+'</div>';
+
+var timerHtml='';
+if(w.status==='pending'){
+timerHtml='<div class="timer-display" data-timer-for="'+w.id+'">'+
+'<div class="tlabel">बचा हुआ समय</div>'+
+'<div class="tvalue">24:00:00</div>'+
+'<div class="tsub">Time Remaining</div>'+
+'</div>';
+}
+
+var actions='';
+if(w.status==='pending'){
+actions='<div class="action-buttons">'+
+'<button class="paid-btn" onclick="markPaid(\''+w.id+'\')">✓ MARK PAID</button>'+
+'<button class="reject-btn" onclick="rejectWithdraw(\''+w.id+'\')">✗ REJECT</button>'+
+'</div>';
+}
+
+html+='<div class="withdraw-card">'+
+'<div class="withdraw-header">'+
+'<div class="withdraw-amount">₹'+w.amount+'</div>'+
+'<div class="withdraw-status status-'+w.status+'">'+w.status+'</div>'+
+'</div>'+
+
+'<div class="user-info-section">'+
+'<div class="ui-title">👤 USER DETAILS</div>'+
+'<div class="detail-row"><span class="detail-label">Name:</span><span class="detail-value" style="color:#fff;font-weight:bold">'+u.name+'</span></div>'+
+'<div class="detail-row"><span class="detail-label">Email:</span><span class="detail-value">'+u.email+'</span></div>'+
+'<div class="detail-row"><span class="detail-label">Mobile:</span><span class="detail-value" style="color:#00e676;font-family:monospace">'+u.phone+'</span></div>'+
+'<div class="detail-row"><span class="detail-label">FF IGN:</span><span class="detail-value" style="color:#ffa500;font-weight:bold">'+u.ffIgn+'</span></div>'+
+'</div>'+
+
+balanceHtml+
+
+'<div class="withdraw-details">'+
+'<div class="detail-row"><span class="detail-label">Method:</span><span class="detail-value method">'+w.method+'</span></div>'+
+'<div class="detail-row"><span class="detail-label">UPI ID:</span><span class="detail-value upi">'+w.upiId+'</span></div>'+
+'<div class="detail-row"><span class="detail-label">Requested:</span><span class="detail-value">'+timeStr+'</span></div>'+
+'</div>'+
+
+timerHtml+
+actions+
+'</div>';
+});
+
+list.innerHTML=html;
+startAllTimers();
+}
+
+function markPaid(id){
+var w=allWithdrawals.find(function(x){return x.id===id});
+if(!w)return;
+var u=userData[w.userId]||{winning:0};
+if(u.winning<w.amount){
+showAlert('⚠️','Not Enough Balance','User has only '+u.winning+' coins in winning balance. Cannot mark paid.');
+return;
+}
+showConfirm('✓','Mark as Paid?','Mark ₹'+w.amount+' as PAID for '+u.name+'?\n\nCoins will be deducted from user\'s winning balance.','MARK PAID','popup-btn-confirm',function(){
+showLoading('Processing...');
+db.collection('users').doc(w.userId).get().then(function(doc){
+if(doc.exists){
+var d=doc.data();
+var cw=d.winning||0;
+return db.collection('users').doc(w.userId).update({
+winning:Math.max(0,cw-w.amount)
+});
+}
+}).then(function(){
+return db.collection('withdrawals').doc(id).update({
+status:'paid',
+paidAt:new Date().toISOString()
+});
+}).then(function(){
+return db.collection('transactions').add({
+userId:w.userId,
+type:'withdraw',
+amount:w.amount,
+status:'paid',
+upiId:w.upiId,
+timestamp:new Date().toISOString()
+});
+}).then(function(){
+hideLoading();
+showToast('✅ Marked as Paid!');
+loadWithdrawals();
+}).catch(function(e){
+hideLoading();
+showAlert('❌','Error',e.message);
+});
+});
+}
+
+function rejectWithdraw(id){
+var w=allWithdrawals.find(function(x){return x.id===id});
+var u=userData[w.userId]||{name:'User'};
+showConfirm('⚠️','Reject Withdrawal?','Reject '+u.name+'\'s withdrawal of ₹'+w.amount+'?','REJECT','popup-btn-danger',function(){
+showLoading('Rejecting...');
+db.collection('withdrawals').doc(id).update({
+status:'rejected',
+rejectedAt:new Date().toISOString()
+}).then(function(){
+hideLoading();
+showToast('Request rejected.');
+loadWithdrawals();
+}).catch(function(e){
+hideLoading();
+showAlert('❌','Error',e.message);
+});
+});
+}
+
+document.getElementById('customPopup').addEventListener('click',function(e){
+if(e.target===this)this.classList.remove('show');
+});
+
+loadWithdrawals();
+</script>
+</body>
+  </html>

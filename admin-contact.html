@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Manage Contact Links - Prime Arena Admin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0f121d;color:white;font-family:Arial;padding:0 0 30px 0;min-height:100vh}
+.tb{display:flex;align-items:center;padding:15px;background:#0d1230;border-bottom:1px solid #2a2f4a;position:sticky;top:0;z-index:100;gap:10px}
+.bk{font-size:24px;cursor:pointer;color:#fff}
+.tt{font-size:15px;font-weight:bold;flex:1}
+.badge{background:linear-gradient(135deg,#ff6b00,#ffa500);font-size:9px;padding:3px 7px;border-radius:10px;font-weight:bold;margin-left:6px}
+.back{color:#fff;text-decoration:none;font-size:13px;background:#2a2f4a;padding:8px 12px;border-radius:6px}
+.wrap{padding:15px}
+.info{background:rgba(255,165,0,.1);border:1px solid #ffa500;border-radius:10px;padding:12px;font-size:12px;color:#ffa500;line-height:1.5;margin-bottom:18px}
+.form-box{background:#1a1f3a;border:1px solid #2a2f4a;border-radius:12px;padding:18px;margin-bottom:15px}
+.form-box h3{font-size:13px;color:#ffa500;margin-bottom:15px;border-left:3px solid #ffa500;padding-left:10px;text-transform:uppercase;letter-spacing:.5px}
+.fg{margin-bottom:14px}
+.fg label{display:block;font-size:11px;color:#aaa;margin-bottom:6px}
+.fg input{width:100%;padding:12px;background:#0a0e27;border:1px solid #2a2f4a;border-radius:8px;color:#fff;font-size:13px;outline:none;font-family:inherit}
+.fg input:focus{border-color:#ffa500}
+.fg .hint{font-size:10px;color:#666;margin-top:4px}
+.save-btn{width:100%;padding:15px;background:linear-gradient(135deg,#00c853,#00e676);border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:bold;cursor:pointer;text-transform:uppercase;letter-spacing:1px}
+.save-btn:disabled{opacity:.5}
+.popup-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:9999;justify-content:center;align-items:center;padding:20px}
+.popup-overlay.show{display:flex}
+.popup-box{background:#0f121d;border:1px solid #d4af37;border-radius:12px;padding:25px 20px;width:100%;max-width:340px;text-align:center}
+.popup-icon{font-size:45px;margin-bottom:12px}
+.popup-title{color:#fca311;font-size:20px;font-weight:bold;margin-bottom:10px}
+.popup-msg{color:#ccc;font-size:14px;margin-bottom:22px;line-height:1.5}
+.popup-btn{width:100%;padding:13px;background:linear-gradient(135deg,#00c853,#00e676);border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:bold;cursor:pointer;text-transform:uppercase}
+.loading-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);display:none;justify-content:center;align-items:center;flex-direction:column;z-index:99999}
+.loading-overlay.show{display:flex}
+.spinner{width:60px;height:60px;border:5px solid #1a1f3a;border-top-color:#ffa500;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:15px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{color:#ffa500;font-size:14px;font-weight:bold}
+</style>
+</head>
+<body>
+<div class="tb">
+<div class="bk" onclick="location.href='admin.html'">←</div>
+<div class="tt">Manage Contact<span class="badge">ADMIN</span></div>
+</div>
+
+<div class="wrap">
+<div class="info">Set your official support links here. These will appear on the user's Contact Us page. Leave a field empty if you haven't created that account yet.</div>
+
+<div class="form-box">
+<h3>📷 Instagram</h3>
+<div class="fg">
+<label>INSTAGRAM PROFILE URL</label>
+<input type="text" id="instagram" placeholder="https://instagram.com/primearena_official">
+<div class="hint">Example: https://instagram.com/your_username</div>
+</div>
+</div>
+
+<div class="form-box">
+<h3>💬 WhatsApp</h3>
+<div class="fg">
+<label>WHATSAPP CHAT LINK</label>
+<input type="text" id="whatsapp" placeholder="https://wa.me/919999999999">
+<div class="hint">Example: https://wa.me/91XXXXXXXXXX</div>
+</div>
+</div>
+
+<div class="form-box">
+<h3>✈️ Telegram Main Channel</h3>
+<div class="fg">
+<label>TELEGRAM CHANNEL LINK</label>
+<input type="text" id="telegram" placeholder="https://t.me/primearena_main">
+<div class="hint">Example: https://t.me/your_channel_name</div>
+</div>
+</div>
+
+<div class="form-box">
+<h3>✈️ Telegram Main Support</h3>
+<div class="fg">
+<label>TELEGRAM LINK</label>
+<input type="text" id="tgm" placeholder="https://t.me/primearena_main">
+</div>
+</div>
+
+<div class="form-box">
+<h3>✈️ Telegram Modes</h3>
+<div class="fg">
+<label>TELEGRAM LINK</label>
+<input type="text" id="tgmo" placeholder="https://t.me/primearena_modes">
+</div>
+</div>
+
+<div class="form-box">
+<h3>✈️ Telegram Payment</h3>
+<div class="fg">
+<label>TELEGRAM LINK</label>
+<input type="text" id="tgp" placeholder="https://t.me/primearena_payment">
+</div>
+</div>
+
+<div class="form-box">
+<h3>✈️ Telegram Help & Support</h3>
+<div class="fg">
+<label>TELEGRAM LINK</label>
+<input type="text" id="tgh" placeholder="https://t.me/primearena_help">
+</div>
+</div>
+
+<button class="save-btn" id="saveBtn" onclick="saveLinks()">💾 SAVE ALL LINKS</button>
+</div>
+
+<div class="popup-overlay" id="popup">
+<div class="popup-box">
+<div class="popup-icon" id="popIcon">✅</div>
+<div class="popup-title" id="popTitle">Success</div>
+<div class="popup-msg" id="popMsg">Saved</div>
+<button class="popup-btn" onclick="closePopup()">OK</button>
+</div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+<div class="spinner"></div>
+<div class="loading-text">Saving...</div>
+</div>
+
+<script>
+var firebaseConfig={apiKey:"AIzaSyC22oO0eveUN3GL9WNtJSzdKghN-X67ZmU",authDomain:"prime-arena-a302b.firebaseapp.com",projectId:"prime-arena-a302b",storageBucket:"prime-arena-a302b.firebasestorage.app",messagingSenderId:"118236794000",appId:"1:118236794000:web:cd0e5bf7503b72f1cf5c15",measurementId:"G-EQJP1D9C92"};
+
+if(!firebase.apps||!firebase.apps.length)firebase.initializeApp(firebaseConfig);
+var db=firebase.firestore();
+
+function showPopup(icon,title,msg){
+document.getElementById('popIcon').textContent=icon;
+document.getElementById('popTitle').textContent=title;
+document.getElementById('popMsg').textContent=msg;
+document.getElementById('popup').classList.add('show');
+}
+function closePopup(){
+document.getElementById('popup').classList.remove('show');
+}
+
+function loadLinks(){
+db.collection('settings').doc('contact').get().then(function(doc){
+if(doc.exists){
+var d=doc.data();
+document.getElementById('instagram').value=d.instagram||'';
+document.getElementById('whatsapp').value=d.whatsapp||'';
+document.getElementById('telegram').value=d.telegram||'';
+document.getElementById('tgm').value=d.tgm||'';
+document.getElementById('tgmo').value=d.tgmo||'';
+document.getElementById('tgp').value=d.tgp||'';
+document.getElementById('tgh').value=d.tgh||'';
+}
+}).catch(function(e){
+console.warn(e);
+});
+}
+
+function saveLinks(){
+document.getElementById('loadingOverlay').classList.add('show');
+document.getElementById('saveBtn').disabled=true;
+
+var data={
+instagram:document.getElementById('instagram').value.trim(),
+whatsapp:document.getElementById('whatsapp').value.trim(),
+telegram:document.getElementById('telegram').value.trim(),
+tgm:document.getElementById('tgm').value.trim(),
+tgmo:document.getElementById('tgmo').value.trim(),
+tgp:document.getElementById('tgp').value.trim(),
+tgh:document.getElementById('tgh').value.trim(),
+updatedAt:new Date().toISOString()
+};
+
+db.collection('settings').doc('contact').set(data,{merge:true}).then(function(){
+document.getElementById('loadingOverlay').classList.remove('show');
+document.getElementById('saveBtn').disabled=false;
+showPopup('✅','Saved!','All contact links have been updated successfully.');
+}).catch(function(e){
+document.getElementById('loadingOverlay').classList.remove('show');
+document.getElementById('saveBtn').disabled=false;
+showPopup('❌','Error','Failed to save: '+e.message);
+});
+}
+
+loadLinks();
+</script>
+</body>
+  </html>

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Manage Privacy Policy - Prime Arena</title>
+  
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      background: #0f121d; 
+      color: white; 
+      font-family: Arial, sans-serif; 
+      padding: 20px; 
+      min-height: 100vh; 
+    }
+    
+    .header { 
+      margin-bottom: 25px; 
+      border-bottom: 1px solid #2a2f4a;
+      padding-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header h1 { 
+      font-size: 22px; 
+      font-weight: bold; 
+      color: #fca311;
+    }
+    .back-btn {
+      color: #fff;
+      text-decoration: none;
+      font-size: 14px;
+      background: #2a2f4a;
+      padding: 8px 12px;
+      border-radius: 6px;
+    }
+
+    /* फॉर्म का डिज़ाइन */
+    .admin-form-box {
+      background: #1a1f3a;
+      border: 1px solid #2a2f4a;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+    .admin-form-box h2 {
+      font-size: 16px;
+      color: #fff;
+      margin-bottom: 15px;
+      border-left: 3px solid #fca311;
+      padding-left: 10px;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      color: #aaa;
+      margin-bottom: 5px;
+    }
+    .form-group textarea {
+      width: 100%;
+      padding: 12px;
+      background: #0f121d;
+      border: 1px solid #2a2f4a;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      outline: none;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 250px;
+      line-height: 1.6;
+    }
+    .form-group textarea:focus {
+      border-color: #fca311;
+    }
+    .save-btn {
+      width: 100%;
+      padding: 14px;
+      background: #10b981;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .save-btn:active { transform: scale(0.98); }
+    .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ================= CUSTOM POPUP CSS START ================= */
+    .popup-overlay {
+      display: none; 
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.8); 
+      z-index: 10000;
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(3px);
+    }
+    .popup-box {
+      background: #0f121d; 
+      border: 1px solid #d4af37; 
+      border-radius: 12px;
+      padding: 25px 20px;
+      width: 85%;
+      max-width: 350px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    }
+    .popup-box h3 { color: #fca311; margin-top: 0; font-size: 22px; margin-bottom: 10px; }
+    .popup-box p { color: #ffffff; font-size: 15px; margin-bottom: 25px; line-height: 1.5; }
+    .popup-buttons { display: flex; gap: 12px; }
+    .popup-btn {
+      flex: 1; padding: 12px; border: none; border-radius: 8px;
+      font-weight: bold; font-size: 15px; cursor: pointer; transition: 0.2s; text-transform: uppercase;
+    }
+    .popup-btn-cancel { background: #2a2d3e; color: #ffffff; }
+    .popup-btn-confirm { background: #10b981; color: #ffffff; }
+    .popup-btn:active { transform: scale(0.95); }
+    /* ================= CUSTOM POPUP CSS END ================= */
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>🔒 Manage Privacy Policy</h1>
+    <a href="admin.html" class="back-btn">← Dashboard</a>
+  </div>
+
+  <!-- Privacy Policy एडिट करने का फॉर्म -->
+  <div class="admin-form-box">
+    <h2>Edit Privacy Policy</h2>
+    <div class="form-group">
+      <label>Privacy Policy Content</label>
+      <textarea id="privacyContent" placeholder="Write your privacy policy here..."></textarea>
+    </div>
+    <button class="save-btn" id="saveBtn" onclick="savePrivacy()">💾 SAVE CHANGES</button>
+  </div>
+
+  <!-- ================= CUSTOM POPUP HTML START ================= -->
+  <div id="customPopupModal" class="popup-overlay">
+    <div class="popup-box">
+      <h3 id="popupTitle">Title</h3>
+      <p id="popupMessage">Message goes here.</p>
+      <div class="popup-buttons">
+        <button id="popupCancelBtn" class="popup-btn popup-btn-cancel">CANCEL</button>
+        <button id="popupConfirmBtn" class="popup-btn popup-btn-confirm">CONFIRM</button>
+      </div>
+    </div>
+  </div>
+  <!-- ================= CUSTOM POPUP HTML END ================= -->
+
+  <script>
+    // Firebase Configuration
+    var firebaseConfig = {
+      apiKey: "AIzaSyC22oO0eveUN3GL9WNtJSzdKghN-X67ZmU",
+      authDomain: "prime-arena-a302b.firebaseapp.com",
+      projectId: "prime-arena-a302b",
+      storageBucket: "prime-arena-a302b.firebasestorage.app",
+      messagingSenderId: "118236794000",
+      appId: "1:118236794000:web:cd0e5bf7503b72f1cf5c15",
+      measurementId: "G-EQJP1D9C92"
+    };
+
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    var db = firebase.firestore();
+
+    /* ================= CUSTOM POPUP JS ================= */
+    function showPopup(title, message, isConfirm = true) {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('customPopupModal');
+        const titleEl = document.getElementById('popupTitle');
+        const msgEl = document.getElementById('popupMessage');
+        const cancelBtn = document.getElementById('popupCancelBtn');
+        const confirmBtn = document.getElementById('popupConfirmBtn');
+
+        titleEl.innerText = title;
+        msgEl.innerText = message;
+        cancelBtn.style.display = isConfirm ? 'block' : 'none';
+        modal.style.display = 'flex';
+
+        const newCancelBtn = cancelBtn.cloneNode(true);
+        const newConfirmBtn = confirmBtn.cloneNode(true);
+        cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+        confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+
+        newCancelBtn.addEventListener('click', () => { modal.style.display = 'none'; resolve(false); });
+        newConfirmBtn.addEventListener('click', () => { modal.style.display = 'none'; resolve(true); });
+      });
+    }
+
+    // 1. पेज लोड होने पर पुराना कंटेंट लोड करना
+    document.addEventListener("DOMContentLoaded", function() {
+      db.collection("settings").doc("privacyPolicy").get().then(function(doc) {
+        if (doc.exists) {
+          document.getElementById('privacyContent').value = doc.data().content || '';
+        }
+      }).catch(function(error) {
+        console.error("Error loading privacy policy: ", error);
+      });
+    });
+
+    // 2. कंटेंट सेव करने का फंक्शन
+    function savePrivacy() {
+      var content = document.getElementById('privacyContent').value.trim();
+      var btn = document.getElementById('saveBtn');
+
+      if (!content) {
+        showPopup("Error!", "Privacy Policy content cannot be empty.", false);
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerText = "SAVING...";
+
+      db.collection("settings").doc("privacyPolicy").set({
+        content: content,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true }).then(function() {
+        btn.disabled = false;
+        btn.innerText = "💾 SAVE CHANGES";
+        showPopup("Success!", "Privacy Policy updated successfully.", false);
+      }).catch(function(error) {
+        btn.disabled = false;
+        btn.innerText = "💾 SAVE CHANGES";
+        showPopup("Error!", "Error saving content: " + error.message, false);
+      });
+    }
+  </script>
+</body>
+</html>

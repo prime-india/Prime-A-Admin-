@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Match Slots - Prime Arena Admin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0f121d;color:#fff;font-family:Arial;padding-bottom:30px;min-height:100vh}
+.tb{display:flex;align-items:center;padding:15px;background:#0d1230;border-bottom:1px solid #2a2f4a;position:sticky;top:0;z-index:100;gap:10px}
+.bk{font-size:24px;cursor:pointer;color:#fff}
+.tt{font-size:15px;font-weight:bold;flex:1}
+.badge{background:linear-gradient(135deg,#ff6b00,#ffa500);font-size:9px;padding:3px 7px;border-radius:10px;font-weight:bold;margin-left:6px}
+.wrap{padding:15px}
+.mhead{background:#1a1f3a;border:1px solid #ffa500;border-radius:12px;padding:15px;margin-bottom:15px}
+.mt{font-size:16px;font-weight:bold;color:#ffa500;margin-bottom:8px}
+.mr{font-size:12px;color:#ccc;margin-bottom:4px;display:flex;justify-content:space-between}
+.mr b{color:#fff}
+.summary{background:#1a1f3a;border:1px solid #2a2f4a;border-radius:10px;padding:12px;margin-bottom:15px;display:flex;justify-content:space-around;text-align:center}
+.sitem .sl{font-size:10px;color:#666;margin-bottom:3px}
+.sitem .sv{font-size:16px;font-weight:bold;color:#00c853}
+.plist{display:flex;flex-direction:column;gap:10px}
+
+/* ============ NORMAL MODE CARDS ============ */
+.pcard{background:#1a1f3a;border:1px solid #2a2f4a;border-radius:10px;padding:12px;border-left:4px solid #00c853}
+.pcard .ptop{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.slotnum{background:#00c853;color:#fff;font-size:11px;font-weight:bold;padding:4px 10px;border-radius:6px}
+.jtime{font-size:10px;color:#666}
+.prow{display:flex;font-size:12px;margin-bottom:5px;line-height:1.5}
+.plabel{color:#888;width:90px;flex-shrink:0}
+.pval{color:#fff;font-weight:bold;word-break:break-all}
+.pval.ign{color:#ffa500}
+.pval.ph{color:#00e676}
+
+/* ============ TEAM MODE ============ */
+.team-section{margin-bottom:18px}
+.team-header{display:flex;align-items:center;justify-content:space-between;padding:12px 15px;border-radius:10px 10px 0 0;font-size:14px;font-weight:bold}
+.team-header.team-a{background:linear-gradient(135deg,#0088cc,#00aaff);color:#fff}
+.team-header.team-b{background:linear-gradient(135deg,#ff3131,#ff5252);color:#fff}
+.team-count{font-size:12px;background:rgba(255,255,255,.25);padding:3px 10px;border-radius:8px;font-weight:bold}
+.team-slots-wrap{background:#0a0e27;border:1px solid #2a2f4a;border-top:none;border-radius:0 0 10px 10px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.team-player-card{background:#1a1f3a;border-radius:8px;padding:10px;border-left:3px solid #00c853}
+.team-player-card .tp-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.tp-slot{background:#00c853;color:#fff;font-size:10px;font-weight:bold;padding:3px 8px;border-radius:5px}
+.team-player-card .prow{font-size:11px;margin-bottom:3px}
+.team-player-card .plabel{width:75px}
+.team-empty{text-align:center;padding:15px;color:#666;font-size:12px;font-style:italic}
+
+.empty{text-align:center;padding:60px 20px;color:#666}
+.empty .ic{font-size:60px;opacity:.5;margin-bottom:15px}
+.empty .t1{font-size:15px;margin-bottom:5px}
+.empty .t2{font-size:12px;color:#444}
+.loading{text-align:center;color:#ffa500;padding:30px;font-size:14px}
+.copied{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#00c853;color:#fff;padding:10px 20px;border-radius:20px;font-size:12px;font-weight:bold;display:none;z-index:1000}
+</style>
+</head>
+<body>
+<div class="tb">
+<div class="bk" onclick="location.href='admin-tournaments.html'">←</div>
+<div class="tt">Match Slots<span class="badge">ADMIN</span></div>
+</div>
+
+<div class="wrap" id="wrap">
+<div class="loading">Loading match details...</div>
+</div>
+
+<div class="copied" id="copied">Copied!</div>
+<script>
+var firebaseConfig={apiKey:"AIzaSyC22oO0eveUN3GL9WNtJSzdKghN-X67ZmU",authDomain:"prime-arena-a302b.firebaseapp.com",projectId:"prime-arena-a302b",storageBucket:"prime-arena-a302b.firebasestorage.app",messagingSenderId:"118236794000",appId:"1:118236794000:web:cd0e5bf7503b72f1cf5c15",measurementId:"G-EQJP1D9C92"};
+
+if(!firebase.apps||!firebase.apps.length)firebase.initializeApp(firebaseConfig);
+var db=firebase.firestore();
+
+function getMid(){
+var p=new URLSearchParams(location.search);
+return p.get('id')||localStorage.getItem('selectedMatchId');
+}
+
+function esc(s){
+if(s===undefined||s===null)return '';
+return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatDate(iso){
+if(!iso)return '-';
+try{
+var d=new Date(iso);
+var dd=d.getDate().toString().padStart(2,'0');
+var mm=(d.getMonth()+1).toString().padStart(2,'0');
+var yy=d.getFullYear();
+var hh=d.getHours().toString().padStart(2,'0');
+var mn=d.getMinutes().toString().padStart(2,'0');
+return dd+'/'+mm+'/'+yy+' '+hh+':'+mn;
+}catch(e){return iso;}
+}
+
+function copyText(text){
+var t=document.createElement('textarea');
+t.value=text;
+t.style.position='fixed';
+t.style.left='-9999px';
+document.body.appendChild(t);
+t.select();
+try{document.execCommand('copy');}catch(e){}
+document.body.removeChild(t);
+var c=document.getElementById('copied');
+c.style.display='block';
+setTimeout(function(){c.style.display='none';},1500);
+}
+
+function isTeam(mode){
+return mode==='Team Duo'||mode==='Team Squad'||mode==='Team 6';
+}
+
+function getTeamSize(mode){
+if(mode==='Team Duo')return 2;
+if(mode==='Team Squad')return 4;
+if(mode==='Team 6')return 6;
+return 0;
+}
+
+function playerCardHtml(p,slotNum,teamLabel){
+var ign=p.ffIgn||'NOT PROVIDED';
+var rn=p.realName||'NOT PROVIDED';
+var ph=p.mobileNumber||'NOT PROVIDED';
+var slotText='SLOT #'+slotNum+(teamLabel?' • TEAM '+teamLabel:'');
+
+return '<div class="team-player-card">'+
+'<div class="tp-top">'+
+'<div class="tp-slot">'+slotText+'</div>'+
+'<div class="jtime">'+formatDate(p.joinedAt)+'</div>'+
+'</div>'+
+'<div class="prow"><div class="plabel">FF IGN</div><div class="pval ign">'+esc(ign)+'</div></div>'+
+'<div class="prow"><div class="plabel">Real Name</div><div class="pval">'+esc(rn)+'</div></div>'+
+'<div class="prow"><div class="plabel">Mobile</div><div class="pval ph" onclick="copyText(\''+esc(ph)+'\')">'+esc(ph)+'</div></div>'+
+'</div>';
+}
+
+function load(){
+var matchId=getMid();
+if(!matchId){
+document.getElementById('wrap').innerHTML='<div class="empty"><div class="ic">X</div><div class="t1">No match selected</div><div class="t2">Please go back and select a match</div></div>';
+return;
+}
+
+db.collection('matches').doc(matchId).get().then(function(doc){
+if(!doc.exists){
+document.getElementById('wrap').innerHTML='<div class="empty"><div class="ic">X</div><div class="t1">Match not found</div></div>';
+return;
+}
+var m=doc.data();
+var mode=m.mode||'Solo';
+var teamMatch=isTeam(mode);
+var teamSize=getTeamSize(mode);
+
+var total=parseInt(m.totalSlots)||0;
+if(!total){
+if(mode==='Solo')total=48;
+else if(mode==='Duo')total=24;
+else if(mode==='Squad')total=12;
+else if(mode==='Team Duo')total=4;
+else if(mode==='Team Squad')total=8;
+else if(mode==='Team 6')total=12;
+else total=48;
+}
+
+db.collection('matches').doc(matchId).collection('slots').get().then(function(snap){
+var players=[];
+snap.forEach(function(sdoc){
+var s=sdoc.data();
+s.slotNum=parseInt(sdoc.id);
+players.push(s);
+});
+players.sort(function(a,b){return a.slotNum-b.slotNum;});
+
+var modeDisplay=mode;
+if(teamMatch)modeDisplay=mode+' ('+teamSize+' vs '+teamSize+')';
+
+var h='<div class="mhead">'+
+'<div class="mt">'+esc(m.title)+'</div>'+
+'<div class="mr"><span>Mode</span><b>'+esc(modeDisplay)+'</b></div>'+
+'<div class="mr"><span>Map</span><b>'+esc(m.map)+'</b></div>'+
+'<div class="mr"><span>Entry Fee</span><b>'+esc(m.entryFee)+' coins</b></div>'+
+'<div class="mr"><span>Status</span><b style="color:#00c853">'+esc(m.status).toUpperCase()+'</b></div>'+
+'</div>'+
+'<div class="summary">'+
+'<div class="sitem"><div class="sl">TOTAL SLOTS</div><div class="sv" style="color:#ffa500">'+total+'</div></div>'+
+'<div class="sitem"><div class="sl">BOOKED</div><div class="sv">'+players.length+'</div></div>'+
+'<div class="sitem"><div class="sl">EMPTY</div><div class="sv" style="color:#ff3131">'+(total-players.length)+'</div></div>'+
+'</div>';
+
+if(players.length===0){
+h+='<div class="empty"><div class="ic">-</div><div class="t1">No slots booked yet</div><div class="t2">Players will appear here once they join</div></div>';
+}else{
+if(teamMatch){
+// ============ TEAM MODE VIEW ============
+var teamAPlayers=[];
+var teamBPlayers=[];
+
+players.forEach(function(p){
+// Slot 1 to teamSize = Team A
+// Slot teamSize+1 to teamSize*2 = Team B
+if(p.slotNum<=teamSize){
+teamAPlayers.push(p);
+}else{
+teamBPlayers.push(p);
+}
+});
+
+// Team A section
+h+='<div class="team-section">'+
+'<div class="team-header team-a">'+
+'<span>🔵 TEAM A</span>'+
+'<span class="team-count">'+teamAPlayers.length+' / '+teamSize+'</span>'+
+'</div>'+
+'<div class="team-slots-wrap">';
+
+if(teamAPlayers.length===0){
+h+='<div class="team-empty">No players in Team A yet</div>';
+}else{
+teamAPlayers.forEach(function(p){
+h+=playerCardHtml(p,p.slotNum,'A');
+});
+}
+
+h+='</div></div>';
+
+// Team B section
+h+='<div class="team-section">'+
+'<div class="team-header team-b">'+
+'<span>🔴 TEAM B</span>'+
+'<span class="team-count">'+teamBPlayers.length+' / '+teamSize+'</span>'+
+'</div>'+
+'<div class="team-slots-wrap">';
+
+if(teamBPlayers.length===0){
+h+='<div class="team-empty">No players in Team B yet</div>';
+}else{
+teamBPlayers.forEach(function(p){
+var displayNum=p.slotNum-teamSize;
+h+=playerCardHtml(p,displayNum,'B');
+});
+}
+
+h+='</div></div>';
+
+}else{
+// ============ NORMAL MODE VIEW ============
+h+='<div class="plist">';
+players.forEach(function(p){
+var ign=p.ffIgn||'NOT PROVIDED';
+var rn=p.realName||'NOT PROVIDED';
+var ph=p.mobileNumber||'NOT PROVIDED';
+h+='<div class="pcard">'+
+'<div class="ptop">'+
+'<div class="slotnum">SLOT #'+p.slotNum+'</div>'+
+'<div class="jtime">'+formatDate(p.joinedAt)+'</div>'+
+'</div>'+
+'<div class="prow"><div class="plabel">Free Fire IGN</div><div class="pval ign">'+esc(ign)+'</div></div>'+
+'<div class="prow"><div class="plabel">Real Name</div><div class="pval">'+esc(rn)+'</div></div>'+
+'<div class="prow"><div class="plabel">Mobile</div><div class="pval ph" onclick="copyText(\''+esc(ph)+'\')">'+esc(ph)+'</div></div>'+
+'<div class="prow"><div class="plabel">User ID</div><div class="pval" style="font-size:10px;color:#666">'+esc(p.userId)+'</div></div>'+
+'</div>';
+});
+h+='</div>';
+}
+}
+
+document.getElementById('wrap').innerHTML=h;
+}).catch(function(e){
+document.getElementById('wrap').innerHTML='<div class="empty"><div class="ic">X</div><div class="t1">Error: '+esc(e.message)+'</div></div>';
+});
+}).catch(function(e){
+document.getElementById('wrap').innerHTML='<div class="empty"><div class="ic">X</div><div class="t1">Error: '+esc(e.message)+'</div></div>';
+});
+}
+
+load();
+</script>
+</body>
+  </html>

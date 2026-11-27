@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Admin Panel - Prime Arena</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0e27;color:white;font-family:'Arial',sans-serif;min-height:100vh;padding-bottom:80px}
+.admin-topbar{display:flex;justify-content:space-between;align-items:center;padding:15px;background:#0d1230;border-bottom:1px solid #2a2f4a;position:sticky;top:0;z-index:100}
+.admin-topbar-left{display:flex;align-items:center;gap:10px}
+.admin-badge{background:linear-gradient(135deg,#ff6b00,#ffa500);color:white;font-size:11px;padding:5px 12px;border-radius:15px;font-weight:bold}
+.admin-topbar-title{font-size:16px;font-weight:bold}
+.logout-small{background:#ff3131;border:none;color:white;font-size:11px;padding:8px 15px;border-radius:8px;font-weight:bold;cursor:pointer}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:15px}
+.stat-card{background:#1a1f3a;border-radius:12px;padding:15px;border:1px solid #2a2f4a;position:relative}
+.stat-icon{font-size:24px;margin-bottom:8px}
+.stat-value{font-size:24px;font-weight:bold;color:#ffa500;margin-bottom:4px}
+.stat-value.loading{color:#666;font-size:18px}
+.stat-label{font-size:11px;color:#ccc}
+.section-head{padding:15px;font-size:14px;font-weight:bold;color:#ffa500}
+.action-list{padding:0 15px}
+.action-item{display:flex;align-items:center;justify-content:space-between;background:#1a1f3a;border-radius:12px;padding:16px 18px;margin-bottom:10px;cursor:pointer;border:1px solid #2a2f4a}
+.action-item:active{background:#2a2f4a}
+.action-left{display:flex;align-items:center;gap:15px}
+.action-icon{font-size:22px;width:25px;text-align:center}
+.action-text{font-size:14px;color:white;font-weight:500}
+.action-right{display:flex;align-items:center;gap:8px}
+.action-arrow{font-size:18px;color:#666}
+.badge-count{background:#ff3131;color:white;font-size:10px;padding:3px 8px;border-radius:10px;font-weight:bold;min-width:22px;text-align:center;display:none}
+.badge-count.show{display:inline-block}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#0d1230;display:flex;justify-content:space-around;padding:8px 0;border-top:1px solid #2a2f4a;z-index:100}
+.nav-item{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;color:#666;font-size:9px;padding:5px 8px;flex:1}
+.nav-item.active{color:#ffa500}
+.nav-icon{font-size:20px}
+.popup-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:10000;justify-content:center;align-items:center;padding:20px}
+.popup-overlay.show{display:flex}
+.popup-box{background:#0f121d;border:1px solid #d4af37;border-radius:12px;padding:25px 20px;width:100%;max-width:350px;text-align:center}
+.popup-box h3{color:#fca311;margin-top:0;font-size:22px;margin-bottom:10px}
+.popup-box p{color:#ffffff;font-size:15px;margin-bottom:25px;line-height:1.5}
+.popup-buttons{display:flex;gap:12px}
+.popup-btn{flex:1;padding:12px;border:none;border-radius:8px;font-weight:bold;font-size:15px;cursor:pointer;text-transform:uppercase}
+.popup-btn-cancel{background:#2a2d3e;color:#ffffff}
+.popup-btn-confirm{background:#10b981;color:#ffffff}
+.blocked-screen{display:none;padding:60px 20px;text-align:center}
+.blocked-screen.show{display:block}
+.blocked-icon{font-size:60px;opacity:.5;margin-bottom:15px}
+.blocked-title{font-size:16px;color:#ff3131;font-weight:bold;margin-bottom:10px}
+.blocked-text{font-size:12px;color:#666;margin-bottom:20px}
+.blocked-btn{padding:14px 30px;background:linear-gradient(135deg,#ff6b00,#ffa500);border:none;border-radius:10px;color:#fff;font-weight:bold;cursor:pointer;font-size:14px}
+</style>
+</head>
+<body>
+
+<!-- ============ SECURITY BLOCKED SCREEN ============ -->
+<div class="blocked-screen" id="blockedScreen">
+<div class="blocked-icon">🔒</div>
+<div class="blocked-title">Access Denied</div>
+<div class="blocked-text">You must login as admin first.</div>
+<button class="blocked-btn" onclick="location.href='admin-login.html'">Go to Admin Login</button>
+</div>
+
+<!-- ============ DASHBOARD ============ -->
+<div id="dashboardScreen" style="display:none">
+
+<div class="admin-topbar">
+<div class="admin-topbar-left">
+<span class="admin-badge">ADMIN</span>
+<span class="admin-topbar-title">Dashboard</span>
+</div>
+<button class="logout-small" onclick="openLogoutPopup()">Logout</button>
+</div>
+
+<!-- STATS GRID -->
+<div class="stats-grid">
+<div class="stat-card">
+<div class="stat-icon">👥</div>
+<div class="stat-value loading" id="totalUsers">...</div>
+<div class="stat-label">Total Users</div>
+</div>
+<div class="stat-card">
+<div class="stat-icon">💰</div>
+<div class="stat-value loading" id="totalRevenue">...</div>
+<div class="stat-label">Total Revenue</div>
+</div>
+<div class="stat-card">
+<div class="stat-icon">🎮</div>
+<div class="stat-value loading" id="activeMatches">...</div>
+<div class="stat-label">Active Matches</div>
+</div>
+<div class="stat-card">
+<div class="stat-icon">⏳</div>
+<div class="stat-value loading" id="pendingDeposits">...</div>
+<div class="stat-label">Pending Deposits</div>
+</div>
+</div>
+
+<!-- QUICK ACTIONS -->
+<div class="section-head">⚡ QUICK ACTIONS</div>
+
+<div class="action-list">
+
+<div class="action-item" onclick="location.href='admin-deposits.html'">
+<div class="action-left"><span class="action-icon">💳</span><span class="action-text">Deposit Management</span></div>
+<div class="action-right"><span class="badge-count" id="badgeDeposits">0</span><span class="action-arrow">›</span></div>
+</div>
+
+<div class="action-item" onclick="location.href='admin-withdrawals.html'">
+<div class="action-left"><span class="action-icon">💸</span><span class="action-text">Withdrawal Management</span></div>
+<div class="action-right"><span class="badge-count" id="badgeWithdrawals">0</span><span class="action-arrow">›</span></div>
+</div>
+
+<div class="action-item" onclick="location.href='admin-redeem.html'">
+<div class="action-left"><span class="action-icon">🎁</span><span class="action-text">Redeem Requests</span></div>
+<div class="action-right"><span class="badge-count" id="badgeRedeem">0</span><span class="action-arrow">›</span></div>
+</div>
+
+<div class="action-item" onclick="location.href='admin-users.html'">
+<div class="action-left"><span class="action-icon">👥</span><span class="action-text">User Management</span></div>
+<span class="action-arrow">›</span>
+</div>
+
+<div class="action-item" onclick="location.href='admin-tournaments.html'">
+<div class="action-left"><span class="action-icon">🎮</span><span class="action-text">Tournament Manager</span></div>
+<span class="action-arrow">›</span>
+</div>
+
+<div class="action-item" onclick="location.href='admin-match-slots.html'">
+<div class="action-left"><span class="action-icon">📋</span><span class="action-text">Match Slots Viewer</span></div>
+<span class="action-arrow">›</span>
+</div>
+
+<div class="action-item" onclick="location.href='admin-result.html'">
+<div class="action-left"><span class="action-icon">🏆</span><span class="action-text">Result Upload</span></div>
+<span class="action-arrow">›</span>
+</div>
+
+<div class="action-item" onclick="location.href='admin-reports.html'">
+<div class="action-left"><span class="action-icon">🚩</span><span class="action-text">Player Reports</span></div>
+<div class="action-right"><span class="badge-count" id="badgeReports">0</span><span class="action-arrow">›</span></div>
+</div>
+
+<div class="action-item" onclick="location.href='admin-password-resets.html'">
+<div class="action-left"><span class="action-icon">🔐</span><span class="action-text">Password Reset Requests</span></div>
+<div class="action-right"><span class="badge-count" id="badgeResets">0</span><span class="action-arrow">›</span></div>
+</div>
+  
+  <div class="action-item" onclick="location.href='admin-banners.html'">
+<div class="action-left"><span class="action-icon">🖼️</span><span class="action-text">Manage Banners</span></div>
+<span class="action-arrow">›</span>
+  </div>
+  
+  <div class="action-item" onclick="location.href='admin-finance.html'">
+<div class="action-left"><span class="action-icon">💹</span><span class="action-text">Financial Report</span></div>
+<span class="action-arrow">›</span>
+  </div>
+  
+  <div class="action-item" onclick="location.href='admin-referrals.html'">
+<div class="action-left"><span class="action-icon">🤝</span><span class="action-text">Referral Tracker</span></div>
+<span class="action-arrow">›</span>
+  </div>
+
+<div class="action-item" onclick="location.href='admin-stats.html'">
+<div class="action-left"><span class="action-icon">📊</span><span class="action-text">Analytics & Stats</span></div>
+<span class="action-arrow">›</span>
+</div>
+
+<div class="action-item" onclick="location.href='admin-history.html'">
+<div class="action-left"><span class="action-icon">📜</span><span class="action-text">History (Full Data)</span></div>
+<span class="action-arrow">›</span>
+</div>
+
+<div class="action-item" onclick="location.href='admin-contact.html'">
+<div class="action-left"><span class="action-icon">📞</span><span class="action-text">Manage Contact Links</span></div>
+<span class="action-arrow">›</span>
+</div>
+
+<div class="action-item" onclick="location.href='admin-faq.html'">
+<div class="action-left"><span class="action-icon">❓</span><span class="action-text">Manage FAQ</span></div>
+<span class="action-arrow">›</span>
+</div>
+
+<div class="action-item" onclick="location.href='admin-about.html'">
+<div class="action-left"><span class="action-icon">ℹ️</span><span class="action-text">Manage About Us</span></div>
+<span class="action-arrow">›</span>
+</div>
+
+<div class="action-item" onclick="location.href='admin-privacy.html'">
+<div class="action-left"><span class="action-icon">🔒</span><span class="action-text">Manage Privacy Policy</span></div>
+<span class="action-arrow">›</span>
+</div>
+
+<div class="action-item" onclick="location.href='admin-terms.html'">
+<div class="action-left"><span class="action-icon">📜</span><span class="action-text">Manage Terms & Conditions</span></div>
+<span class="action-arrow">›</span>
+</div>
+
+<div class="action-item" onclick="location.href='admin-settings.html'">
+<div class="action-left"><span class="action-icon">⚙️</span><span class="action-text">Settings</span></div>
+<span class="action-arrow">›</span>
+</div>
+
+<div class="action-item" onclick="location.href='cleanup.html'">
+<div class="action-left"><span class="action-icon">🧹</span><span class="action-text">Cleanup Test Data</span></div>
+<span class="action-arrow">›</span>
+</div>
+
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+<div class="nav-item active" onclick="location.href='admin.html'"><span class="nav-icon">🏠</span><span>Dashboard</span></div>
+<div class="nav-item" onclick="location.href='admin-users.html'"><span class="nav-icon">👥</span><span>Users</span></div>
+<div class="nav-item" onclick="location.href='admin-tournaments.html'"><span class="nav-icon">🎮</span><span>Matches</span></div>
+<div class="nav-item" onclick="location.href='admin-withdrawals.html'"><span class="nav-icon">💸</span><span>Withdrawals</span></div>
+<div class="nav-item" onclick="location.href='admin-settings.html'"><span class="nav-icon">⚙️</span><span>Settings</span></div>
+</div>
+
+</div>
+
+<!-- ============ LOGOUT POPUP ============ -->
+<div id="logoutPopup" class="popup-overlay">
+<div class="popup-box">
+<h3>Logout?</h3>
+<p>Are you sure you want to logout from Admin Panel?</p>
+<div class="popup-buttons">
+<button class="popup-btn popup-btn-cancel" onclick="closeLogoutPopup()">CANCEL</button>
+<button class="popup-btn popup-btn-confirm" onclick="confirmLogout()">LOGOUT</button>
+</div>
+</div>
+</div>
+
+<script>
+// ============ FIREBASE ============
+var firebaseConfig={apiKey:"AIzaSyC22oO0eveUN3GL9WNtJSzdKghN-X67ZmU",authDomain:"prime-arena-a302b.firebaseapp.com",projectId:"prime-arena-a302b",storageBucket:"prime-arena-a302b.firebasestorage.app",messagingSenderId:"118236794000",appId:"1:118236794000:web:cd0e5bf7503b72f1cf5c15",measurementId:"G-EQJP1D9C92"};
+
+if(!firebase.apps||!firebase.apps.length)firebase.initializeApp(firebaseConfig);
+var db=firebase.firestore();
+
+// ============ SECURITY CHECK ============
+var SESSION_KEY="primeArenaAdmin";
+
+function isAdminLoggedIn(){
+try{
+return sessionStorage.getItem(SESSION_KEY)==='true'||localStorage.getItem(SESSION_KEY)==='true';
+}catch(e){
+return false;
+}
+}
+
+if(!isAdminLoggedIn()){
+document.getElementById('blockedScreen').classList.add('show');
+document.getElementById('dashboardScreen').style.display='none';
+setTimeout(function(){
+location.href='admin-login.html';
+},1500);
+}else{
+document.getElementById('dashboardScreen').style.display='block';
+loadStats();
+}
+
+// ============ LOGOUT ============
+function openLogoutPopup(){
+document.getElementById('logoutPopup').classList.add('show');
+}
+function closeLogoutPopup(){
+document.getElementById('logoutPopup').classList.remove('show');
+}
+function confirmLogout(){
+try{
+sessionStorage.removeItem(SESSION_KEY);
+localStorage.removeItem(SESSION_KEY);
+}catch(e){}
+location.href='admin-login.html';
+}
+
+document.getElementById('logoutPopup').addEventListener('click',function(e){
+if(e.target===this)closeLogoutPopup();
+});
+
+// ============ LOAD STATS ============
+async function loadStats(){
+try{
+// Total Users
+var usersSnap=await db.collection('users').get();
+document.getElementById('totalUsers').textContent=usersSnap.size;
+document.getElementById('totalUsers').classList.remove('loading');
+
+// Deposits + Revenue + Pending Deposits
+var depositsSnap=await db.collection('deposits').get();
+var totalDeposited=0;
+var pendingDeposits=0;
+depositsSnap.forEach(function(doc){
+var d=doc.data();
+if(d.status==='approved'||d.status==='completed'){
+totalDeposited+=(parseInt(d.amount)||0);
+}else if(d.status==='pending'){
+pendingDeposits++;
+}
+});
+
+// Withdrawals
+var withdrawalsSnap=await db.collection('withdrawals').get();
+var totalWithdrawn=0;
+var pendingW=0;
+withdrawalsSnap.forEach(function(doc){
+var d=doc.data();
+if(d.status==='paid'){
+totalWithdrawn+=(parseInt(d.amount)||0);
+}else if(d.status==='pending'){
+pendingW++;
+}
+});
+
+// Revenue
+var revenue=totalDeposited-totalWithdrawn;
+document.getElementById('totalRevenue').textContent='₹'+revenue;
+document.getElementById('totalRevenue').classList.remove('loading');
+
+// Pending Deposits
+document.getElementById('pendingDeposits').textContent=pendingDeposits;
+document.getElementById('pendingDeposits').classList.remove('loading');
+
+// Active Matches (upcoming + live)
+var matchesSnap=await db.collection('matches').get();
+var activeMatches=0;
+matchesSnap.forEach(function(doc){
+var s=(doc.data().status||'').toLowerCase();
+if(s==='upcoming'||s==='live')activeMatches++;
+});
+document.getElementById('activeMatches').textContent=activeMatches;
+document.getElementById('activeMatches').classList.remove('loading');
+
+// ============ BADGES ============
+setBadge('badgeDeposits',pendingDeposits);
+setBadge('badgeWithdrawals',pendingW);
+
+// Pending Redeems
+var redeemSnap=await db.collection('redeem_requests').get();
+var pendingR=0;
+redeemSnap.forEach(function(doc){
+var s=doc.data().status;
+if(!s||s==='pending')pendingR++;
+});
+setBadge('badgeRedeem',pendingR);
+
+// Pending Reports
+var reportsSnap=await db.collection('reports').get();
+var pendingRep=0;
+reportsSnap.forEach(function(doc){
+var s=doc.data().status;
+if(!s||s==='pending')pendingRep++;
+});
+setBadge('badgeReports',pendingRep);
+
+// Pending Password Resets
+var resetsSnap=await db.collection('password_reset_requests').get();
+var pendingResets=0;
+resetsSnap.forEach(function(doc){
+if(doc.data().status==='pending')pendingResets++;
+});
+setBadge('badgeResets',pendingResets);
+
+}catch(e){
+console.error('Stats load error:',e);
+var els=['totalUsers','totalRevenue','activeMatches','pendingDeposits'];
+els.forEach(function(id){
+var el=document.getElementById(id);
+if(el&&el.classList.contains('loading')){
+el.textContent='0';
+el.classList.remove('loading');
+}
+});
+}
+}
+
+function setBadge(id,count){
+var el=document.getElementById(id);
+if(!el)return;
+if(count>0){
+el.textContent=count>99?'99+':count;
+el.classList.add('show');
+}else{
+el.classList.remove('show');
+}
+}
+</script>
+</body>
+  </html>

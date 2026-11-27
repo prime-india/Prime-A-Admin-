@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Cleanup - Prime Arena Admin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0e27;color:white;font-family:Arial;padding:20px;min-height:100vh;padding-bottom:80px}
+.topbar{display:flex;align-items:center;padding:15px;background:#0d1230;border-bottom:1px solid #2a2f4a;margin:-20px -20px 20px -20px;gap:15px}
+.back-btn{font-size:24px;color:white;cursor:pointer}
+.topbar-title{font-size:16px;font-weight:bold}
+h1{color:#ff3131;text-align:center;margin-bottom:20px;font-size:22px}
+.warn{background:rgba(255,49,49,0.15);border:2px solid #ff3131;border-radius:10px;padding:15px;margin-bottom:20px;text-align:center;font-size:13px;line-height:1.6}
+.box{background:#1a1f3a;border:1px solid #2a2f4a;border-radius:10px;padding:15px;margin-bottom:15px;font-size:12px;line-height:1.8}
+.box b{color:#ffa500}
+button{width:100%;padding:18px;border:none;border-radius:10px;font-size:15px;font-weight:bold;color:white;margin-bottom:12px;cursor:pointer;text-transform:uppercase;letter-spacing:.5px}
+.btn1{background:linear-gradient(135deg,#ff3131,#ff5252)}
+.btn2{background:linear-gradient(135deg,#ff6b00,#ffa500)}
+.btn3{background:linear-gradient(135deg,#0088cc,#00aaff)}
+button:active{transform:scale(0.98)}
+button:disabled{opacity:.5;cursor:not-allowed}
+#log{background:#0a0e27;border:1px solid #ffa500;border-radius:10px;padding:15px;margin-top:15px;font-family:monospace;font-size:11px;line-height:1.7;white-space:pre-wrap;min-height:100px;max-height:400px;overflow-y:auto}
+.popup-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:9999;justify-content:center;align-items:center;padding:20px;backdrop-filter:blur(3px)}
+.popup-overlay.show{display:flex}
+.popup-box{background:#0f121d;border:1px solid #ff3131;border-radius:14px;padding:25px 20px;width:100%;max-width:360px;text-align:center}
+.popup-icon{font-size:50px;margin-bottom:12px;line-height:1}
+.popup-title{color:#ff3131;font-size:20px;font-weight:bold;margin-bottom:12px}
+.popup-msg{color:#ccc;font-size:14px;line-height:1.6;margin-bottom:22px;white-space:pre-line}
+.popup-buttons{display:flex;gap:10px}
+.popup-btn{flex:1;padding:14px;border:none;border-radius:10px;font-weight:bold;font-size:13px;cursor:pointer;text-transform:uppercase}
+.popup-btn-cancel{background:#2a2d3e;color:#fff}
+.popup-btn-danger{background:linear-gradient(135deg,#ff3131,#ff5252);color:#fff}
+.loading-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);display:none;justify-content:center;align-items:center;flex-direction:column;z-index:99999}
+.loading-overlay.show{display:flex}
+.spinner{width:60px;height:60px;border:5px solid #1a1f3a;border-top-color:#ff3131;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:15px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{color:#ff3131;font-size:14px;font-weight:bold}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+<div class="back-btn" onclick="location.href='admin.html'">←</div>
+<div class="topbar-title">Cleanup</div>
+</div>
+
+<h1>⚠️ CLEANUP PAGE</h1>
+
+<div class="warn">
+<b style="color:#ff3131">DANGER!</b><br>
+यह सारा test data delete कर देगा।<br>
+<b>वापस नहीं हो सकता!</b>
+</div>
+
+<div class="box">
+<b>Delete होगा:</b><br>
+• users (सारे test users)<br>
+• deposits<br>
+• withdrawals<br>
+• redeem_requests<br>
+• matches<br>
+• reports<br>
+• transactions<br>
+• blacklist<br>
+• password_reset_requests
+</div>
+
+<div class="box">
+<b>Safe रहेगा:</b><br>
+• faqs<br>
+• settings (About, Privacy, Terms, Contact, Payment)<br>
+• admin password
+</div>
+
+<button class="btn1" onclick="askCleanup()">🗑️ DELETE ALL TEST DATA</button>
+<button class="btn2" onclick="showCounts()">📊 SHOW COUNTS</button>
+<button class="btn3" onclick="location.href='admin.html'">← BACK TO ADMIN</button>
+
+<div id="log">Ready...</div>
+
+<div class="popup-overlay" id="customPopup">
+<div class="popup-box">
+<div class="popup-icon" id="popupIcon">⚠️</div>
+<div class="popup-title" id="popupTitle">Warning</div>
+<div class="popup-msg" id="popupMsg">Message</div>
+<div class="popup-buttons" id="popupButtons"></div>
+</div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+<div class="spinner"></div>
+<div class="loading-text" id="loadingText">Processing...</div>
+</div>
+
+<script>
+var firebaseConfig={apiKey:"AIzaSyC22oO0eveUN3GL9WNtJSzdKghN-X67ZmU",authDomain:"prime-arena-a302b.firebaseapp.com",projectId:"prime-arena-a302b",storageBucket:"prime-arena-a302b.firebasestorage.app",messagingSenderId:"118236794000",appId:"1:118236794000:web:cd0e5bf7503b72f1cf5c15",measurementId:"G-EQJP1D9C92"};
+
+if(!firebase.apps||!firebase.apps.length)firebase.initializeApp(firebaseConfig);
+var db=firebase.firestore();
+
+// ============ COLLECTIONS TO DELETE ============
+var list=['users','deposits','withdrawals','redeem_requests','matches','reports','transactions','blacklist','password_reset_requests'];
+
+function log(msg){
+var el=document.getElementById('log');
+el.textContent += '\n' + msg;
+el.scrollTop = el.scrollHeight;
+}
+
+// ============ POPUP ============
+function showConfirm(icon,title,msg,btnLabel,btnClass,callback){
+document.getElementById('popupIcon').textContent=icon;
+document.getElementById('popupTitle').textContent=title;
+document.getElementById('popupMsg').textContent=msg;
+var btnRow=document.getElementById('popupButtons');
+btnRow.innerHTML='';
+var cancelBtn=document.createElement('button');
+cancelBtn.textContent='CANCEL';
+cancelBtn.className='popup-btn popup-btn-cancel';
+cancelBtn.onclick=function(){document.getElementById('customPopup').classList.remove('show');};
+var confirmBtn=document.createElement('button');
+confirmBtn.textContent=btnLabel;
+confirmBtn.className='popup-btn '+(btnClass||'popup-btn-danger');
+confirmBtn.onclick=function(){document.getElementById('customPopup').classList.remove('show');if(callback)callback();};
+btnRow.appendChild(cancelBtn);
+btnRow.appendChild(confirmBtn);
+document.getElementById('customPopup').classList.add('show');
+}
+
+function showAlert(icon,title,msg,callback){
+document.getElementById('popupIcon').textContent=icon;
+document.getElementById('popupTitle').textContent=title;
+document.getElementById('popupMsg').textContent=msg;
+var btnRow=document.getElementById('popupButtons');
+btnRow.innerHTML='';
+var okBtn=document.createElement('button');
+okBtn.textContent='OK';
+okBtn.className='popup-btn popup-btn-danger';
+okBtn.onclick=function(){document.getElementById('customPopup').classList.remove('show');if(callback)callback();};
+btnRow.appendChild(okBtn);
+document.getElementById('customPopup').classList.add('show');
+}
+
+function showLoading(text){
+document.getElementById('loadingText').textContent=text||'Processing...';
+document.getElementById('loadingOverlay').classList.add('show');
+}
+function hideLoading(){
+document.getElementById('loadingOverlay').classList.remove('show');
+}
+
+// ============ SHOW COUNTS ============
+function showCounts(){
+document.getElementById('log').textContent='Loading counts...\n';
+list.forEach(function(name){
+db.collection(name).get().then(function(snap){
+log('• '+name+': '+snap.size+' docs');
+}).catch(function(e){
+log('• '+name+': ERROR');
+});
+});
+}
+
+// ============ DOUBLE CONFIRMATION ============
+function askCleanup(){
+showConfirm('⚠️','Step 1 of 2','क्या आप पक्का सारा test data delete करना चाहते हैं?\n\nयह वापस नहीं हो सकता!','YES, DELETE','popup-btn-danger',function(){
+setTimeout(function(){
+showConfirm('🚨','Step 2 of 2','आखिरी बार पूछ रहा हूँ!\n\nसारे users, matches, deposits, withdrawals, transactions delete हो जाएँगे।\n\nPura data clean ho jayega!','CONFIRM DELETE','popup-btn-danger',function(){
+cleanupAll();
+});
+},300);
+});
+}
+
+// ============ DELETE ONE COLLECTION ============
+function deleteOne(name){
+return db.collection(name).get().then(function(snap){
+if(snap.empty){
+log('✓ '+name+': already empty');
+return 0;
+}
+log('⏳ '+name+': deleting '+snap.size+' docs...');
+var promises=[];
+snap.forEach(function(doc){
+promises.push(db.collection(name).doc(doc.id).delete());
+});
+return Promise.all(promises).then(function(){
+log('✅ '+name+': DONE ('+snap.size+' deleted)');
+return snap.size;
+});
+}).catch(function(e){
+log('❌ '+name+': '+e.message);
+return 0;
+});
+}
+
+// ============ MAIN CLEANUP ============
+async function cleanupAll(){
+showLoading('Deleting all test data...');
+document.getElementById('log').textContent='Starting cleanup...\n';
+
+var totalDeleted=0;
+
+for(var i=0;i<list.length;i++){
+var count=await deleteOne(list[i]);
+totalDeleted+=count;
+}
+
+hideLoading();
+
+log('\n═══════════════════════════');
+log('🎉 CLEANUP COMPLETE!');
+log('Total documents deleted: '+totalDeleted);
+log('═══════════════════════════');
+
+showAlert('✅','Cleanup Complete!','Total '+totalDeleted+' documents delete हो गए।\n\nअब नया data आएगा — सब fresh!',null);
+}
+
+// ============ INIT ============
+log('Page ready.');
+log('');
+log('Collections to delete:');
+list.forEach(function(n){log('• '+n);});
+log('');
+log('Click "DELETE ALL TEST DATA" to start.');
+</script>
+</body>
+  </html>

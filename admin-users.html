@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>User Management - Prime Arena Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0e27; color: white; font-family: 'Arial', sans-serif; padding-bottom: 80px; min-height: 100vh; }
+    .topbar { display: flex; align-items: center; padding: 15px; background: #0d1230; border-bottom: 1px solid #2a2f4a; position: sticky; top: 0; z-index: 100; gap: 15px; }
+    .back-btn { font-size: 24px; color: white; cursor: pointer; }
+    .topbar-title { font-size: 16px; font-weight: bold; color: white; display: flex; align-items: center; gap: 8px; }
+    .admin-badge { background: linear-gradient(135deg, #ff6b00, #ffa500); color: white; font-size: 10px; padding: 3px 8px; border-radius: 10px; font-weight: bold; }
+    .search-box { padding: 15px; }
+    .search-input { width: 100%; padding: 14px 18px; background: #1a1f3a; border: 1px solid #2a2f4a; border-radius: 12px; color: white; font-size: 14px; outline: none; }
+    .search-input:focus { border-color: #ffa500; }
+    .search-input::placeholder { color: #666; }
+    .stats-row { display: flex; gap: 10px; padding: 0 15px 15px; }
+    .mini-stat { flex: 1; background: #1a1f3a; border-radius: 10px; padding: 12px; text-align: center; border: 1px solid #2a2f4a; }
+    .mini-stat-value { font-size: 18px; font-weight: bold; color: #ffa500; margin-bottom: 3px; }
+    .mini-stat-label { font-size: 10px; color: #ccc; }
+    .user-list { padding: 0 15px; }
+    .user-card { background: #1a1f3a; border-radius: 12px; padding: 15px; margin-bottom: 12px; border: 1px solid #2a2f4a; border-left: 4px solid #00c853; }
+    .user-card.blocked { border-left-color: #ff3131; opacity: 0.7; }
+    .user-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .user-avatar { width: 45px; height: 45px; border-radius: 50%; background: linear-gradient(135deg, #ff6b00, #ffa500); display: flex; justify-content: center; align-items: center; font-size: 20px; font-weight: bold; color: white; flex-shrink: 0; }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-size: 14px; font-weight: bold; color: white; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-email { font-size: 11px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-status { font-size: 9px; padding: 3px 8px; border-radius: 10px; font-weight: bold; text-transform: uppercase; }
+    .status-active { background: #00c853; color: white; }
+    .status-blocked { background: #ff3131; color: white; }
+    .user-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .user-detail-item { background: #0a0e27; border-radius: 8px; padding: 8px 10px; }
+    .user-detail-label { font-size: 9px; color: #666; margin-bottom: 2px; }
+    .user-detail-value { font-size: 13px; color: #ffa500; font-weight: bold; }
+    .user-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-small { flex: 1; min-width: 100px; padding: 10px; border: none; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer; color: white; }
+    .btn-coins { background: linear-gradient(135deg, #6a1b9a, #8e24aa); }
+    .btn-block { background: linear-gradient(135deg, #ff3131, #ff5252); }
+    .btn-unblock { background: linear-gradient(135deg, #00c853, #00e676); }
+    .empty-state { text-align: center; padding: 60px 20px; color: #666; }
+    .empty-icon { font-size: 60px; margin-bottom: 15px; opacity: 0.5; }
+    .empty-text { font-size: 15px; margin-bottom: 5px; }
+    .empty-subtext { font-size: 12px; color: #444; }
+    .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #00c853; color: white; padding: 12px 25px; border-radius: 25px; font-size: 13px; font-weight: bold; display: none; z-index: 2000; }
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #0d1230; display: flex; justify-content: space-around; padding: 8px 0; border-top: 1px solid #2a2f4a; z-index: 100; }
+    .nav-item { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; color: #666; font-size: 9px; padding: 5px 8px; flex: 1; }
+    .nav-item.active { color: #ffa500; }
+    .nav-icon { font-size: 20px; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="back-btn" onclick="window.location.href='admin.html'">←</div>
+    <div class="topbar-title">
+      User Management
+      <span class="admin-badge">ADMIN</span>
+    </div>
+  </div>
+
+  <div class="search-box">
+    <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search by name, email, phone...">
+  </div>
+
+  <div class="stats-row">
+    <div class="mini-stat">
+      <div class="mini-stat-value" id="totalUsersCount">0</div>
+      <div class="mini-stat-label">Total Users</div>
+    </div>
+    <div class="mini-stat">
+      <div class="mini-stat-value" id="activeUsersCount">0</div>
+      <div class="mini-stat-label">Active</div>
+    </div>
+    <div class="mini-stat">
+      <div class="mini-stat-value" id="blockedUsersCount">0</div>
+      <div class="mini-stat-label">Blocked</div>
+    </div>
+  </div>
+
+  <div class="user-list" id="userList">
+    <div class="empty-state">
+      <div class="empty-icon">⏳</div>
+      <div class="empty-text">Loading users...</div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Success!</div>
+
+  <div class="bottom-nav">
+    <div class="nav-item" onclick="window.location.href='admin.html'">
+      <span class="nav-icon">🏠</span>
+      <span>Dashboard</span>
+    </div>
+    <div class="nav-item active" onclick="window.location.href='admin-users.html'">
+      <span class="nav-icon">👥</span>
+      <span>Users</span>
+    </div>
+    <div class="nav-item" onclick="window.location.href='admin-deposits.html'">
+      <span class="nav-icon">💳</span>
+      <span>Deposits</span>
+    </div>
+    <div class="nav-item" onclick="window.location.href='admin-withdrawals.html'">
+      <span class="nav-icon">💸</span>
+      <span>Withdrawals</span>
+    </div>
+    <div class="nav-item" onclick="window.location.href='admin-settings.html'">
+      <span class="nav-icon">⚙️</span>
+      <span>Settings</span>
+    </div>
+  </div>
+
+  <script>
+    var firebaseConfig = {
+      apiKey: "AIzaSyC22oO0eveUN3GL9WNtJSzdKghN-X67ZmU",
+      authDomain: "prime-arena-a302b.firebaseapp.com",
+      projectId: "prime-arena-a302b",
+      storageBucket: "prime-arena-a302b.firebasestorage.app",
+      messagingSenderId: "118236794000",
+      appId: "1:118236794000:web:cd0e5bf7503b72f1cf5c15",
+      measurementId: "G-EQJP1D9C92"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    var db = firebase.firestore();
+
+    var allUsers = [];
+    var currentUserId = null;
+    var currentUserName = null;
+
+    // ===== Custom Popup =====
+    function showCustomPopup(title, message, onConfirm, showCancel, showInput, inputPlaceholder) {
+      var popup = document.createElement('div');
+      popup.id = 'customPopup';
+      popup.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);display:flex;justify-content:center;align-items:center;z-index:9999;padding:20px;';
+      
+      var box = document.createElement('div');
+      box.style.cssText = 'background:#1a1f3a;border-radius:15px;padding:25px;width:100%;max-width:350px;border:1px solid #ffa500;';
+      
+      var titleEl = document.createElement('div');
+      titleEl.style.cssText = 'font-size:18px;font-weight:bold;color:#ffa500;margin-bottom:12px;text-align:center;';
+      titleEl.textContent = title;
+      
+      var msgEl = document.createElement('div');
+      msgEl.style.cssText = 'font-size:14px;color:#ccc;line-height:1.5;margin-bottom:20px;text-align:center;';
+      msgEl.textContent = message;
+      
+      box.appendChild(titleEl);
+      box.appendChild(msgEl);
+      
+      var inputEl = null;
+      if (showInput) {
+        inputEl = document.createElement('input');
+        inputEl.type = 'number';
+        inputEl.placeholder = inputPlaceholder || 'Enter amount';
+        inputEl.style.cssText = 'width:100%;padding:14px;background:#0a0e27;border:1px solid #2a2f4a;border-radius:10px;color:white;font-size:15px;outline:none;margin-bottom:15px;';
+        box.appendChild(inputEl);
+      }
+      
+      var btnRow = document.createElement('div');
+      btnRow.style.cssText = 'display:flex;gap:10px;';
+      
+      if (showCancel) {
+        var cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'CANCEL';
+        cancelBtn.style.cssText = 'flex:1;padding:14px;background:#2a2f4a;border:none;border-radius:10px;color:white;font-size:14px;font-weight:bold;cursor:pointer;';
+        cancelBtn.onclick = function() { document.body.removeChild(popup); };
+        
+        var confirmBtn = document.createElement('button');
+        confirmBtn.textContent = 'CONFIRM';
+        confirmBtn.style.cssText = 'flex:1;padding:14px;background:linear-gradient(135deg,#00c853,#00e676);border:none;border-radius:10px;color:white;font-size:14px;font-weight:bold;cursor:pointer;';
+        confirmBtn.onclick = function() {
+          var inputValue = inputEl ? inputEl.value : null;
+          document.body.removeChild(popup);
+          if (onConfirm) onConfirm(inputValue);
+        };
+        
+        btnRow.appendChild(cancelBtn);
+        btnRow.appendChild(confirmBtn);
+      } else {
+        var okBtn = document.createElement('button');
+        okBtn.textContent = 'OK';
+        okBtn.style.cssText = 'flex:1;padding:14px;background:linear-gradient(135deg,#00c853,#00e676);border:none;border-radius:10px;color:white;font-size:14px;font-weight:bold;cursor:pointer;';
+        okBtn.onclick = function() {
+          document.body.removeChild(popup);
+          if (onConfirm) onConfirm();
+        };
+        btnRow.appendChild(okBtn);
+      }
+      
+      box.appendChild(btnRow);
+      popup.appendChild(box);
+      document.body.appendChild(popup);
+    }
+
+    // ===== Load Users =====
+    function loadUsers() {
+      db.collection("users").get().then(function(querySnapshot) {
+        allUsers = [];
+        querySnapshot.forEach(function(doc) {
+          var data = doc.data();
+          data.id = doc.id;
+          allUsers.push(data);
+        });
+        
+        allUsers.sort(function(a, b) {
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        });
+        
+        displayUsers(allUsers);
+        updateStats();
+      }).catch(function(error) {
+        console.error("Error:", error);
+        document.getElementById('userList').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">❌</div>
+            <div class="empty-text">Error: ${error.message}</div>
+          </div>
+        `;
+      });
+    }
+
+    function displayUsers(users) {
+      var list = document.getElementById('userList');
+      
+      if (users.length === 0) {
+        list.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">👥</div>
+            <div class="empty-text">No Users Found</div>
+            <div class="empty-subtext">Users will appear here after registration.</div>
+          </div>
+        `;
+        return;
+      }
+      
+      var html = '';
+      users.forEach(function(u) {
+        var initial = (u.firstName || u.name || 'U').charAt(0).toUpperCase();
+        
+        html += `
+          <div class="user-card ${u.isBlocked ? 'blocked' : ''}">
+            <div class="user-header">
+              <div class="user-avatar">${initial}</div>
+              <div class="user-info">
+                <div class="user-name">${u.name || 'Unknown'}</div>
+                <div class="user-email">${u.email || ''}</div>
+              </div>
+              <div class="user-status ${u.isBlocked ? 'status-blocked' : 'status-active'}">
+                ${u.isBlocked ? 'Blocked' : 'Active'}
+              </div>
+            </div>
+            
+            <div class="user-details">
+              <div class="user-detail-item">
+                <div class="user-detail-label">PHONE</div>
+                <div class="user-detail-value">${u.phone || '-'}</div>
+              </div>
+              <div class="user-detail-item">
+                <div class="user-detail-label">BALANCE</div>
+                <div class="user-detail-value">🪙 ${u.balance || 0}</div>
+              </div>
+            </div>
+            
+            <div class="user-actions">
+              <button class="btn-small btn-coins" data-coins-id="${u.id}" data-coins-name="${u.name}">💰 Add Coins</button>
+              ${u.isBlocked ? 
+                `<button class="btn-small btn-unblock" data-unblock-id="${u.id}">✓ Unblock</button>` :
+                `<button class="btn-small btn-block" data-block-id="${u.id}">✗ Block</button>`
+              }
+            </div>
+          </div>
+        `;
+      });
+      
+      list.innerHTML = html;
+      
+      list.querySelectorAll('[data-coins-id]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          openCoinsModal(this.getAttribute('data-coins-id'), this.getAttribute('data-coins-name'));
+        });
+      });
+      
+      list.querySelectorAll('[data-block-id]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          blockUser(this.getAttribute('data-block-id'));
+        });
+      });
+      
+      list.querySelectorAll('[data-unblock-id]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          unblockUser(this.getAttribute('data-unblock-id'));
+        });
+      });
+    }
+
+    function updateStats() {
+      document.getElementById('totalUsersCount').textContent = allUsers.length;
+      document.getElementById('activeUsersCount').textContent = allUsers.filter(u => !u.isBlocked).length;
+      document.getElementById('blockedUsersCount').textContent = allUsers.filter(u => u.isBlocked).length;
+    }
+
+    // ===== Search =====
+    document.getElementById('searchInput').addEventListener('input', function() {
+      var query = this.value.toLowerCase();
+      
+      if (!query) {
+        displayUsers(allUsers);
+        return;
+      }
+      
+      var filtered = allUsers.filter(function(u) {
+        return (u.name && u.name.toLowerCase().includes(query)) ||
+               (u.email && u.email.toLowerCase().includes(query)) ||
+               (u.phone && u.phone.includes(query));
+      });
+      
+      displayUsers(filtered);
+    });
+
+    // ===== Block User =====
+    function blockUser(id) {
+      showCustomPopup(
+        'Block User',
+        'Are you sure you want to block this user? They will not be able to use the app.',
+        function() {
+          db.collection("users").doc(id).update({ isBlocked: true }).then(function() {
+            showToast('User Blocked!');
+            loadUsers();
+          });
+        },
+        true
+      );
+    }
+
+    // ===== Unblock User =====
+    function unblockUser(id) {
+      showCustomPopup(
+        'Unblock User',
+        'Are you sure you want to unblock this user?',
+        function() {
+          db.collection("users").doc(id).update({ isBlocked: false }).then(function() {
+            showToast('User Unblocked!');
+            loadUsers();
+          });
+        },
+        true
+      );
+    }
+
+    // ===== Open Coins Modal =====
+    function openCoinsModal(id, name) {
+      currentUserId = id;
+      currentUserName = name;
+      
+      showCustomPopup(
+        '💰 Add Coins',
+        'Add coins to ' + name + '\'s wallet:',
+        function(amount) {
+          var amt = parseInt(amount);
+          if (!amt || amt <= 0) {
+            showCustomPopup('Error', 'Please enter a valid amount', null, false);
+            return;
+          }
+          
+          db.collection("users").doc(currentUserId).get().then(function(doc) {
+            if (doc.exists) {
+              var currentBalance = doc.data().balance || 0;
+              return db.collection("users").doc(currentUserId).update({
+                balance: currentBalance + amt
+              });
+            }
+          }).then(function() {
+            showToast(amt + ' Coins added!');
+            loadUsers();
+          }).catch(function(error) {
+            showCustomPopup('Error', error.message, null, false);
+          });
+        },
+        true,
+        true,
+        'Enter coins amount'
+      );
+    }
+
+    function showToast(msg) {
+      var toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      setTimeout(function() {
+        toast.style.display = 'none';
+      }, 2500);
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>

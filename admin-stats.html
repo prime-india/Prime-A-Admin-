@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Analytics - Prime Arena Admin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0e27;color:white;font-family:'Arial',sans-serif;padding-bottom:80px;min-height:100vh}
+.topbar{display:flex;align-items:center;padding:15px;background:#0d1230;border-bottom:1px solid #2a2f4a;position:sticky;top:0;z-index:100;gap:15px}
+.back-btn{font-size:24px;color:white;cursor:pointer}
+.topbar-title{font-size:16px;font-weight:bold;display:flex;align-items:center;gap:8px}
+.admin-badge{background:linear-gradient(135deg,#ff6b00,#ffa500);color:white;font-size:10px;padding:3px 8px;border-radius:10px;font-weight:bold}
+.refresh-btn{background:#2a2f4a;border:none;color:#fff;padding:8px 12px;border-radius:6px;font-size:16px;cursor:pointer;margin-left:auto}
+.tabs{display:flex;padding:10px;gap:6px;overflow-x:auto;background:#0d1230;border-bottom:1px solid #2a2f4a;position:sticky;top:56px;z-index:99}
+.tab{padding:8px 14px;background:#1a1f3a;border:1px solid #2a2f4a;border-radius:20px;font-size:11px;color:#ccc;cursor:pointer;white-space:nowrap;font-weight:bold}
+.tab.active{background:linear-gradient(135deg,#ff6b00,#ffa500);color:#fff;border-color:#ffa500}
+.tab-content{display:none;padding:15px}
+.tab-content.active{display:block}
+.section-title{font-size:13px;font-weight:bold;color:#ffa500;margin-bottom:12px;margin-top:20px;border-left:3px solid #ffa500;padding-left:10px}
+.section-title:first-child{margin-top:0}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.stat-box{background:linear-gradient(135deg,#1a1f3a,#0f1424);border:1px solid #2a2f4a;border-radius:12px;padding:14px}
+.stat-box.new{border-left:4px solid #00c853}
+.stat-box.dep{border-left:4px solid #ffa500}
+.stat-box.wd{border-left:4px solid #ff3131}
+.stat-box.red{border-left:4px solid #8e24aa}
+.stat-box.mat{border-left:4px solid #0088cc}
+.stat-box.rev{border-left:4px solid #00e676}
+.stat-box-icon{font-size:20px;margin-bottom:5px}
+.stat-box-value{font-size:22px;font-weight:bold;color:#fff;margin-bottom:3px}
+.stat-box-label{font-size:9px;color:#888;letter-spacing:.5px;font-weight:bold}
+.big-total{background:linear-gradient(135deg,rgba(106,27,154,0.3),rgba(255,165,0,0.15));border:1px solid #ffa500;border-radius:12px;padding:15px;margin-bottom:15px}
+.big-total-title{font-size:12px;color:#ffa500;font-weight:bold;margin-bottom:12px;text-align:center;letter-spacing:1px}
+.big-total-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.big-total-item{background:rgba(10,14,39,0.6);border-radius:10px;padding:12px;text-align:center}
+.big-total-item .bti-icon{font-size:20px;margin-bottom:4px}
+.big-total-item .bti-value{font-size:18px;font-weight:bold;color:#fff;margin-bottom:3px}
+.big-total-item .bti-label{font-size:9px;color:#ccc;letter-spacing:.5px}
+.table-box{background:#1a1f3a;border:1px solid #2a2f4a;border-radius:12px;padding:12px;margin-bottom:15px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:10px}
+thead th{color:#666;font-size:8px;text-transform:uppercase;padding:7px 4px;border-bottom:1px solid #2a2f4a;text-align:center;font-weight:bold}
+tbody td{padding:9px 4px;text-align:center;border-bottom:1px solid #1f2440;color:#ccc}
+tbody tr:last-child td{border-bottom:none}
+tbody tr.today-row{background:rgba(255,165,0,0.08)}
+tbody tr.today-row td{color:#fff;font-weight:bold}
+.date-cell{text-align:left !important;color:#fff;font-weight:500}
+.users-cell{color:#00c853;font-weight:bold}
+.dep-cell{color:#ffa500;font-weight:bold}
+.wd-cell{color:#ff3131;font-weight:bold}
+.rev-cell{color:#00e676;font-weight:bold}
+.mat-cell{color:#00aaff;font-weight:bold}
+.red-cell{color:#b84dff;font-weight:bold}
+.graph-box{background:#1a1f3a;border:1px solid #2a2f4a;border-radius:12px;padding:15px;margin-bottom:15px}
+.g-row{padding:10px 0;border-bottom:1px solid #2a2f4a}
+.g-row:last-child{border-bottom:none}
+.g-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.g-label{font-size:12px;color:#fff;font-weight:bold}
+.g-pct{font-size:13px;font-weight:bold}
+.g-pct.up{color:#00e676}
+.g-pct.down{color:#ff3131}
+.g-vals{display:flex;justify-content:space-between;font-size:10px;color:#888;margin-bottom:5px}
+.g-bar-bg{width:100%;background:#0a0e27;border-radius:6px;height:10px;overflow:hidden}
+.g-bar{height:100%;border-radius:6px;transition:width 0.5s}
+.g-bar.green{background:linear-gradient(90deg,#00c853,#00e676)}
+.g-bar.red{background:linear-gradient(90deg,#ff3131,#ff5252)}
+.transaction-list{display:flex;flex-direction:column;gap:8px;margin-bottom:15px}
+.tx-item{background:#1a1f3a;border:1px solid #2a2f4a;border-radius:10px;padding:12px;border-left:3px solid #ffa500}
+.tx-item.wd{border-left-color:#ff3131}
+.tx-item.dep{border-left-color:#00c853}
+.tx-item.red{border-left-color:#8e24aa}
+.tx-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:10px}
+.tx-amount{font-size:15px;font-weight:bold}
+.tx-amount.dep{color:#00c853}
+.tx-amount.wd{color:#ff3131}
+.tx-amount.red{color:#b84dff}
+.tx-row{font-size:10px;display:flex;justify-content:space-between;padding:3px 0;color:#ccc;gap:10px}
+.tx-row .label{color:#666}
+.tx-row .value{text-align:right;max-width:65%;word-break:break-all;color:#ccc}
+.tx-status{font-size:8px;padding:2px 8px;border-radius:8px;font-weight:bold;text-transform:uppercase}
+.tx-status.pending{background:#ffa500;color:#0a0e27}
+.tx-status.paid,.tx-status.completed,.tx-status.approved{background:#00c853;color:#fff}
+.tx-status.rejected{background:#ff3131;color:#fff}
+.filter-row{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:5px}
+.chip{padding:7px 14px;background:#1a1f3a;border:1px solid #2a2f4a;border-radius:15px;font-size:10px;color:#ccc;cursor:pointer;white-space:nowrap;font-weight:bold}
+.chip.active{background:#ffa500;color:#0a0e27;border-color:#ffa500}
+.empty-msg{text-align:center;color:#666;padding:30px 15px;font-size:12px}
+.loading-msg{text-align:center;color:#ffa500;padding:30px;font-size:13px}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#0d1230;display:flex;justify-content:space-around;padding:8px 0;border-top:1px solid #2a2f4a;z-index:100}
+.nav-item{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;color:#666;font-size:9px;padding:5px 8px;flex:1}
+.nav-item.active{color:#ffa500}
+.nav-icon{font-size:20px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+<div class="back-btn" onclick="location.href='admin.html'">←</div>
+<div class="topbar-title">Analytics<span class="admin-badge">ADMIN</span></div>
+<button class="refresh-btn" onclick="loadAllData()">↻</button>
+</div>
+
+<div class="tabs">
+<div class="tab active" onclick="switchTab('today',this)">📊 Today</div>
+<div class="tab" onclick="switchTab('7days',this)">📅 7 Days</div>
+<div class="tab" onclick="switchTab('30days',this)">📅 30 Days</div>
+<div class="tab" onclick="switchTab('12months',this)">📅 12 Months</div>
+<div class="tab" onclick="switchTab('52weeks',this)">📅 52 Weeks</div>
+<div class="tab" onclick="switchTab('withdrawals',this)">💸 Withdrawals</div>
+<div class="tab" onclick="switchTab('redeems',this)">🎁 Redeems</div>
+<div class="tab" onclick="switchTab('deposits',this)">💰 Deposits</div>
+</div>
+
+<div class="tab-content active" id="tab-today">
+<div class="section-title">📊 आज का Data</div>
+<div class="grid-2" id="todayGrid"></div>
+<div class="section-title">📈 Growth % (आज vs कल)</div>
+<div class="graph-box"><div id="growthBars"></div></div>
+<div class="section-title">📅 कल vs आज (Table)</div>
+<div class="table-box">
+<table>
+<thead><tr><th>METRIC</th><th>कल</th><th>आज</th><th>CHANGE</th></tr></thead>
+<tbody id="compareBody"></tbody>
+</table>
+</div>
+</div>
+
+<div class="tab-content" id="tab-7days">
+<div class="section-title">📅 पिछले 7 दिन का Data</div>
+<div class="table-box">
+<table>
+<thead><tr><th>DATE</th><th>👥</th><th>💰</th><th>💸</th><th>🎁</th><th>🎮</th><th>📈</th></tr></thead>
+<tbody id="week7Body"><tr><td colspan="7" class="loading-msg">Loading...</td></tr></tbody>
+</table>
+</div>
+<div class="section-title">📊 7-Day Totals</div>
+<div class="big-total">
+<div class="big-total-title">7 दिन का Total</div>
+<div class="big-total-grid" id="week7Totals"></div>
+</div>
+<div class="section-title">📈 This Week vs Last Week</div>
+<div class="graph-box"><div id="weekGrowthBars"></div></div>
+</div>
+
+<div class="tab-content" id="tab-30days">
+<div class="section-title">📅 पिछले 30 दिन का Data</div>
+<div class="table-box">
+<table>
+<thead><tr><th>DATE</th><th>👥</th><th>💰</th><th>💸</th><th>🎁</th><th>🎮</th><th>📈</th></tr></thead>
+<tbody id="month30Body"><tr><td colspan="7" class="loading-msg">Loading...</td></tr></tbody>
+</table>
+</div>
+<div class="section-title">📊 30-Day Totals</div>
+<div class="big-total">
+<div class="big-total-title">30 दिन का Total</div>
+<div class="big-total-grid" id="month30Totals"></div>
+</div>
+<div class="section-title">📈 This Month vs Last Month</div>
+<div class="graph-box"><div id="monthGrowthBars"></div></div>
+</div>
+
+<div class="tab-content" id="tab-12months">
+<div class="section-title">📅 पिछले 12 महीने का Data</div>
+<div class="table-box">
+<table>
+<thead><tr><th>MONTH</th><th>👥</th><th>💰</th><th>💸</th><th>🎁</th><th>🎮</th><th>📈</th></tr></thead>
+<tbody id="months12Body"><tr><td colspan="7" class="loading-msg">Loading...</td></tr></tbody>
+</table>
+</div>
+<div class="section-title">📊 साल का Total</div>
+<div class="big-total">
+<div class="big-total-title">Last 12 Months Total</div>
+<div class="big-total-grid" id="months12Totals"></div>
+</div>
+</div>
+
+<div class="tab-content" id="tab-52weeks">
+<div class="section-title">📅 पिछले 52 हफ्तों का Data</div>
+<div class="table-box">
+<table>
+<thead><tr><th>WEEK</th><th>👥</th><th>💰</th><th>💸</th><th>🎁</th><th>🎮</th><th>📈</th></tr></thead>
+<tbody id="weeks52Body"><tr><td colspan="7" class="loading-msg">Loading...</td></tr></tbody>
+</table>
+</div>
+<div class="section-title">📊 साल का Total</div>
+<div class="big-total">
+<div class="big-total-title">Last 52 Weeks Total</div>
+<div class="big-total-grid" id="weeks52Totals"></div>
+</div>
+</div>
+
+<div class="tab-content" id="tab-withdrawals">
+<div class="section-title">💸 सारे Withdrawals</div>
+<div class="big-total">
+<div class="big-total-title">Withdrawals Summary</div>
+<div class="big-total-grid" id="wdSummary"></div>
+</div>
+<div class="filter-row">
+<div class="chip active" onclick="filterTx('withdrawals','all',this)">All</div>
+<div class="chip" onclick="filterTx('withdrawals','pending',this)">Pending</div>
+<div class="chip" onclick="filterTx('withdrawals','paid',this)">Paid</div>
+<div class="chip" onclick="filterTx('withdrawals','rejected',this)">Rejected</div>
+</div>
+<div id="withdrawalsList" class="transaction-list"><div class="loading-msg">Loading...</div></div>
+</div>
+
+<div class="tab-content" id="tab-redeems">
+<div class="section-title">🎁 सारे Redeems</div>
+<div class="big-total">
+<div class="big-total-title">Redeem Summary</div>
+<div class="big-total-grid" id="redSummary"></div>
+</div>
+<div class="filter-row">
+<div class="chip active" onclick="filterTx('redeem_requests','all',this)">All</div>
+<div class="chip" onclick="filterTx('redeem_requests','pending',this)">Pending</div>
+<div class="chip" onclick="filterTx('redeem_requests','completed',this)">Completed</div>
+<div class="chip" onclick="filterTx('redeem_requests','rejected',this)">Rejected</div>
+</div>
+<div id="redeemsList" class="transaction-list"><div class="loading-msg">Loading...</div></div>
+</div>
+
+<div class="tab-content" id="tab-deposits">
+<div class="section-title">💰 सारे Deposits</div>
+<div class="big-total">
+<div class="big-total-title">Deposits Summary</div>
+<div class="big-total-grid" id="depSummary"></div>
+</div>
+<div class="filter-row">
+<div class="chip active" onclick="filterTx('deposits','all',this)">All</div>
+<div class="chip" onclick="filterTx('deposits','pending',this)">Pending</div>
+<div class="chip" onclick="filterTx('deposits','completed',this)">Completed</div>
+<div class="chip" onclick="filterTx('deposits','rejected',this)">Rejected</div>
+</div>
+<div id="depositsList" class="transaction-list"><div class="loading-msg">Loading...</div></div>
+</div>
+
+<div class="bottom-nav">
+<div class="nav-item" onclick="location.href='admin.html'"><span class="nav-icon">🏠</span><span>Dashboard</span></div>
+<div class="nav-item" onclick="location.href='admin-users.html'"><span class="nav-icon">👥</span><span>Users</span></div>
+<div class="nav-item active" onclick="location.href='admin-stats.html'"><span class="nav-icon">📊</span><span>Stats</span></div>
+<div class="nav-item" onclick="location.href='admin-withdrawals.html'"><span class="nav-icon">💸</span><span>Withdrawals</span></div>
+<div class="nav-item" onclick="location.href='admin-settings.html'"><span class="nav-icon">⚙️</span><span>Settings</span></div>
+</div>
+<script>
+var firebaseConfig={apiKey:"AIzaSyC22oO0eveUN3GL9WNtJSzdKghN-X67ZmU",authDomain:"prime-arena-a302b.firebaseapp.com",projectId:"prime-arena-a302b",storageBucket:"prime-arena-a302b.firebasestorage.app",messagingSenderId:"118236794000",appId:"1:118236794000:web:cd0e5bf7503b72f1cf5c15",measurementId:"G-EQJP1D9C92"};
+
+if(!firebase.apps||!firebase.apps.length)firebase.initializeApp(firebaseConfig);
+var db=firebase.firestore();
+
+var dataByDate={};
+var rawData={users:[],deposits:[],withdrawals:[],redeems:[],matches:[]};
+var filterWd='all',filterRed='all',filterDep='all';
+
+function getDateStr(v){if(!v)return '';try{var d=new Date(v);if(isNaN(d.getTime()))return '';return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}catch(e){return '';}}
+
+function dateStrOffset(o){var d=new Date();d.setDate(d.getDate()-o);return getDateStr(d);}
+
+function fmtDate(s){var p=s.split('-');var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return p[2]+' '+m[parseInt(p[1])-1];}
+
+function fmtTime(v){if(!v)return '-';try{var d=new Date(v);if(isNaN(d.getTime()))return '-';return d.getDate()+'/'+(d.getMonth()+1)+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}catch(e){return '-';}}
+
+function ensureDate(d){if(!dataByDate[d])dataByDate[d]={users:0,deposits:0,withdrawals:0,redeem:0,matches:0,revenue:0};return dataByDate[d];}
+
+function switchTab(name,el){document.querySelectorAll('.tab-content').forEach(function(t){t.classList.remove('active');});document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.getElementById('tab-'+name).classList.add('active');if(el)el.classList.add('active');}
+
+function getRangeSum(start,end){var t={users:0,deposits:0,withdrawals:0,redeem:0,matches:0,revenue:0};for(var i=start;i<=end;i++){var d=dataByDate[dateStrOffset(i)]||{users:0,deposits:0,withdrawals:0,redeem:0,matches:0,revenue:0};t.users+=d.users;t.deposits+=d.deposits;t.withdrawals+=d.withdrawals;t.redeem+=d.redeem;t.matches+=d.matches;t.revenue+=d.revenue;}return t;}
+
+function loadAllData(){
+console.log('Loading...');
+dataByDate={};
+rawData={users:[],deposits:[],withdrawals:[],redeems:[],matches:[]};
+Promise.all([db.collection('users').get(),db.collection('deposits').get(),db.collection('withdrawals').get(),db.collection('redeem_requests').get(),db.collection('matches').get()]).then(function(r){
+var uSnap=r[0],dSnap=r[1],wSnap=r[2],rSnap=r[3],mSnap=r[4];
+uSnap.forEach(function(doc){var d=doc.data();d._id=doc.id;rawData.users.push(d);var ds=getDateStr(d.createdAt);if(ds)ensureDate(ds).users++;});
+dSnap.forEach(function(doc){var d=doc.data();d._id=doc.id;rawData.deposits.push(d);var ds=getDateStr(d.createdAt);if(!ds)return;if(d.status==='completed'||d.status==='approved'||d.status==='pending')ensureDate(ds).deposits+=(d.amount||0);});
+wSnap.forEach(function(doc){var d=doc.data();d._id=doc.id;rawData.withdrawals.push(d);var ds=getDateStr(d.createdAt);if(!ds)return;if(d.status==='paid')ensureDate(ds).withdrawals+=(d.amount||0);});
+rSnap.forEach(function(doc){var d=doc.data();d._id=doc.id;rawData.redeems.push(d);var ds=getDateStr(d.createdAt);if(!ds)return;if(d.status==='completed')ensureDate(ds).redeem+=(d.amountINR||0);});
+mSnap.forEach(function(doc){var d=doc.data();d._id=doc.id;rawData.matches.push(d);var ds=getDateStr(d.createdAt);if(ds)ensureDate(ds).matches++;});
+Object.keys(dataByDate).forEach(function(k){var day=dataByDate[k];day.revenue=day.deposits-day.withdrawals;});
+rawData.deposits.sort(function(a,b){return new Date(b.createdAt||0)-new Date(a.createdAt||0);});
+rawData.withdrawals.sort(function(a,b){return new Date(b.createdAt||0)-new Date(a.createdAt||0);});
+rawData.redeems.sort(function(a,b){return new Date(b.createdAt||0)-new Date(a.createdAt||0);});
+renderToday();renderGrowthBars();renderCompare();renderTable(7,'week7Body');renderTable(30,'month30Body');renderTotals(7,'week7Totals');renderTotals(30,'month30Totals');render12Months();render52Weeks();renderWeekGrowth();renderMonthGrowth();renderWithdrawals();renderRedeems();renderDeposits();renderSummaries();
+console.log('✅ Loaded');
+}).catch(function(e){console.error(e);alert('Error: '+e.message);});
+}
+  function renderToday(){
+var t=dataByDate[dateStrOffset(0)]||{users:0,deposits:0,withdrawals:0,redeem:0,matches:0,revenue:0};
+document.getElementById('todayGrid').innerHTML='<div class="stat-box new"><div class="stat-box-icon">👥</div><div class="stat-box-value">'+t.users+'</div><div class="stat-box-label">NEW USERS</div></div>'+'<div class="stat-box dep"><div class="stat-box-icon">💰</div><div class="stat-box-value">₹'+t.deposits+'</div><div class="stat-box-label">DEPOSITS</div></div>'+'<div class="stat-box wd"><div class="stat-box-icon">💸</div><div class="stat-box-value">₹'+t.withdrawals+'</div><div class="stat-box-label">WITHDRAWALS</div></div>'+'<div class="stat-box red"><div class="stat-box-icon">🎁</div><div class="stat-box-value">₹'+t.redeem+'</div><div class="stat-box-label">REDEEM</div></div>'+'<div class="stat-box mat"><div class="stat-box-icon">🎮</div><div class="stat-box-value">'+t.matches+'</div><div class="stat-box-label">MATCHES</div></div>'+'<div class="stat-box rev"><div class="stat-box-icon">📈</div><div class="stat-box-value">₹'+t.revenue+'</div><div class="stat-box-label">REVENUE</div></div>';
+}
+
+function makeGrowthBar(label,yest,today,icon){
+var pct=0,isUp=true;
+if(yest===0&&today===0)pct=0;
+else if(yest===0)pct=100;
+else pct=Math.round(((today-yest)/yest)*100);
+isUp=pct>=0;
+var arrow=isUp?'▲':'▼';
+var cls=isUp?'up':'down';
+var barCls=isUp?'green':'red';
+var width=Math.min(100,Math.max(5,Math.abs(pct)));
+return '<div class="g-row"><div class="g-top"><div class="g-label">'+icon+' '+label+'</div><div class="g-pct '+cls+'">'+arrow+' '+Math.abs(pct)+'%</div></div><div class="g-vals"><span>पिछले: '+yest+'</span><span>अभी: '+today+'</span></div><div class="g-bar-bg"><div class="g-bar '+barCls+'" style="width:'+width+'%"></div></div></div>';
+}
+
+function renderGrowthBars(){
+var t=dataByDate[dateStrOffset(0)]||{users:0,deposits:0,withdrawals:0,redeem:0,matches:0,revenue:0};
+var y=dataByDate[dateStrOffset(1)]||{users:0,deposits:0,withdrawals:0,redeem:0,matches:0,revenue:0};
+var h='';
+h+=makeGrowthBar('Users',y.users,t.users,'👥');
+h+=makeGrowthBar('Deposits',y.deposits,t.deposits,'💰');
+h+=makeGrowthBar('Withdrawals',y.withdrawals,t.withdrawals,'💸');
+h+=makeGrowthBar('Redeem',y.redeem,t.redeem,'🎁');
+h+=makeGrowthBar('Matches',y.matches,t.matches,'🎮');
+h+=makeGrowthBar('Revenue',y.revenue,t.revenue,'📈');
+document.getElementById('growthBars').innerHTML=h;
+}
+
+function renderWeekGrowth(){
+var tw=getRangeSum(0,6);
+var lw=getRangeSum(7,13);
+var h='';
+h+=makeGrowthBar('Users',lw.users,tw.users,'👥');
+h+=makeGrowthBar('Deposits',lw.deposits,tw.deposits,'💰');
+h+=makeGrowthBar('Withdrawals',lw.withdrawals,tw.withdrawals,'💸');
+h+=makeGrowthBar('Matches',lw.matches,tw.matches,'🎮');
+h+=makeGrowthBar('Revenue',lw.revenue,tw.revenue,'📈');
+document.getElementById('weekGrowthBars').innerHTML=h;
+}
+
+function renderMonthGrowth(){
+var tm=getRangeSum(0,29);
+var lm=getRangeSum(30,59);
+var h='';
+h+=makeGrowthBar('Users',lm.users,tm.users,'👥');
+h+=makeGrowthBar('Deposits',lm.deposits,tm.deposits,'💰');
+h+=makeGrowthBar('Withdrawals',lm.withdrawals,tm.withdrawals,'💸');
+h+=makeGrowthBar('Matches',lm.matches,tm.matches,'🎮');
+h+=makeGrowthBar('Revenue',lm.revenue,tm.revenue,'📈');
+document.getElementById('monthGrowthBars').innerHTML=h;
+}
+
+function renderCompare(){
+var t=dataByDate[dateStrOffset(0)]||{users:0,deposits:0,withdrawals:0,revenue:0};
+var y=dataByDate[dateStrOffset(1)]||{users:0,deposits:0,withdrawals:0,revenue:0};
+function row(label,yv,tv){
+var diff=tv-yv;
+var pct=yv===0?(tv>0?100:0):Math.round((diff/yv)*100);
+var arrow='—',cls='up';
+if(diff>0){arrow='▲ +'+pct+'%';cls='up';}
+else if(diff<0){arrow='▼ '+pct+'%';cls='down';}
+else{arrow='— 0%';cls='up';}
+return '<tr><td class="date-cell">'+label+'</td><td>'+yv+'</td><td>'+tv+'</td><td><span class="g-pct '+cls+'">'+arrow+'</span></td></tr>';
+}
+document.getElementById('compareBody').innerHTML=row('👥 Users',y.users,t.users)+row('💰 Deposits',y.deposits,t.deposits)+row('💸 Withdrawals',y.withdrawals,t.withdrawals)+row('📈 Revenue',y.revenue,t.revenue);
+}
+
+function renderTable(days,bodyId){
+var body=document.getElementById(bodyId);
+if(!body)return;
+var html='';
+for(var i=0;i<days;i++){
+var ds=dateStrOffset(i);
+var d=dataByDate[ds]||{users:0,deposits:0,withdrawals:0,redeem:0,matches:0,revenue:0};
+var isT=i===0;
+html+='<tr class="'+(isT?'today-row':'')+'"><td class="date-cell">'+(isT?'Today ':'')+fmtDate(ds)+'</td><td class="users-cell">'+d.users+'</td><td class="dep-cell">₹'+d.deposits+'</td><td class="wd-cell">₹'+d.withdrawals+'</td><td class="red-cell">₹'+d.redeem+'</td><td class="mat-cell">'+d.matches+'</td><td class="rev-cell">₹'+d.revenue+'</td></tr>';
+}
+body.innerHTML=html;
+}
+
+function renderTotals(days,elId){
+var el=document.getElementById(elId);
+if(!el)return;
+var t={users:0,deposits:0,withdrawals:0,redeem:0,matches:0,revenue:0};
+for(var i=0;i<days;i++){
+var d=dataByDate[dateStrOffset(i)]||{users:0,deposits:0,withdrawals:0,redeem:0,matches:0,revenue:0};
+t.users+=d.users;t.deposits+=d.deposits;t.withdrawals+=d.withdrawals;t.redeem+=d.redeem;t.matches+=d.matches;t.revenue+=d.revenue;
+}
+el.innerHTML='<div class="big-total-item"><div class="bti-icon">👥</div><div class="bti-value">'+t.users+'</div><div class="bti-label">USERS</div></div>'+'<div class="big-total-item"><div class="bti-icon">💰</div><div class="bti-value">₹'+t.deposits+'</div><div class="bti-label">DEPOSITS</div></div>'+'<div class="big-total-item"><div class="bti-icon">💸</div><div class="bti-value">₹'+t.withdrawals+'</div><div class="bti-label">WITHDRAWALS</div></div>'+'<div class="big-total-item"><div class="bti-icon">🎁</div><div class="bti-value">₹'+t.redeem+'</div><div class="bti-label">REDEEM</div></div>'+'<div class="big-total-item"><div class="bti-icon">🎮</div><div class="bti-value">'+t.matches+'</div><div class="bti-label">MATCHES</div></div>'+'<div class="big-total-item"><div class="bti-icon">📈</div><div class="bti-value">₹'+t.revenue+'</div><div class="bti-label">REVENUE</div></div>';
+  }
+  function render12Months(){
+var body=document.getElementById('months12Body');
+if(!body)return;
+var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var monthly={};
+var now=new Date();
+for(var i=0;i<12;i++){
+var d=new Date(now.getFullYear(),now.getMonth()-i,1);
+var key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+monthly[key]={users:0,deposits:0,withdrawals:0,redeem:0,matches:0,revenue:0,label:months[d.getMonth()]+' '+d.getFullYear(),idx:i};
+}
+Object.keys(dataByDate).forEach(function(ds){
+var mk=ds.substring(0,7);
+if(monthly[mk]){var d=dataByDate[ds];monthly[mk].users+=d.users;monthly[mk].deposits+=d.deposits;monthly[mk].withdrawals+=d.withdrawals;monthly[mk].redeem+=d.redeem;monthly[mk].matches+=d.matches;monthly[mk].revenue+=d.revenue;}
+});
+var sorted=Object.keys(monthly).sort(function(a,b){return monthly[a].idx-monthly[b].idx;});
+var html='';
+var tot={users:0,deposits:0,withdrawals:0,redeem:0,matches:0,revenue:0};
+sorted.forEach(function(k){
+var m=monthly[k];
+tot.users+=m.users;tot.deposits+=m.deposits;tot.withdrawals+=m.withdrawals;tot.redeem+=m.redeem;tot.matches+=m.matches;tot.revenue+=m.revenue;
+var cur=m.idx===0;
+html+='<tr class="'+(cur?'today-row':'')+'"><td class="date-cell">'+m.label+(cur?' (Cur)':'')+'</td><td class="users-cell">'+m.users+'</td><td class="dep-cell">₹'+m.deposits+'</td><td class="wd-cell">₹'+m.withdrawals+'</td><td class="red-cell">₹'+m.redeem+'</td><td class="mat-cell">'+m.matches+'</td><td class="rev-cell">₹'+m.revenue+'</td></tr>';
+});
+body.innerHTML=html;
+document.getElementById('months12Totals').innerHTML='<div class="big-total-item"><div class="bti-icon">👥</div><div class="bti-value">'+tot.users+'</div><div class="bti-label">USERS</div></div>'+'<div class="big-total-item"><div class="bti-icon">💰</div><div class="bti-value">₹'+tot.deposits+'</div><div class="bti-label">DEPOSITS</div></div>'+'<div class="big-total-item"><div class="bti-icon">💸</div><div class="bti-value">₹'+tot.withdrawals+'</div><div class="bti-label">WITHDRAWALS</div></div>'+'<div class="big-total-item"><div class="bti-icon">🎁</div><div class="bti-value">₹'+tot.redeem+'</div><div class="bti-label">REDEEM</div></div>'+'<div class="big-total-item"><div class="bti-icon">🎮</div><div class="bti-value">'+tot.matches+'</div><div class="bti-label">MATCHES</div></div>'+'<div class="big-total-item"><div class="bti-icon">📈</div><div class="bti-value">₹'+tot.revenue+'</div><div class="bti-label">REVENUE</div></div>';
+}
+
+function render52Weeks(){
+var body=document.getElementById('weeks52Body');
+if(!body)return;
+var weeks=[];
+var now=new Date();
+for(var i=0;i<52;i++){
+var ws=new Date(now);
+ws.setDate(now.getDate()-now.getDay()+1-(i*7));
+ws.setHours(0,0,0,0);
+var we=new Date(ws);
+we.setDate(ws.getDate()+6);
+weeks.push({start:ws.getTime(),label:fmtDate(getDateStr(ws))+' - '+fmtDate(getDateStr(we)),idx:i,users:0,deposits:0,withdrawals:0,redeem:0,matches:0,revenue:0});
+}
+Object.keys(dataByDate).forEach(function(ds){
+var t=new Date(ds).getTime();
+for(var i=0;i<weeks.length;i++){
+var w=weeks[i];
+if(t>=w.start&&t<w.start+7*24*60*60*1000){var d=dataByDate[ds];w.users+=d.users;w.deposits+=d.deposits;w.withdrawals+=d.withdrawals;w.redeem+=d.redeem;w.matches+=d.matches;w.revenue+=d.revenue;break;}
+}
+});
+var html='';
+var tot={users:0,deposits:0,withdrawals:0,redeem:0,matches:0,revenue:0};
+weeks.forEach(function(w){
+tot.users+=w.users;tot.deposits+=w.deposits;tot.withdrawals+=w.withdrawals;tot.redeem+=w.redeem;tot.matches+=w.matches;tot.revenue+=w.revenue;
+var cur=w.idx===0;
+html+='<tr class="'+(cur?'today-row':'')+'"><td class="date-cell" style="font-size:9px">'+w.label+(cur?' (Cur)':'')+'</td><td class="users-cell">'+w.users+'</td><td class="dep-cell">₹'+w.deposits+'</td><td class="wd-cell">₹'+w.withdrawals+'</td><td class="red-cell">₹'+w.redeem+'</td><td class="mat-cell">'+w.matches+'</td><td class="rev-cell">₹'+w.revenue+'</td></tr>';
+});
+body.innerHTML=html;
+document.getElementById('weeks52Totals').innerHTML='<div class="big-total-item"><div class="bti-icon">👥</div><div class="bti-value">'+tot.users+'</div><div class="bti-label">USERS</div></div>'+'<div class="big-total-item"><div class="bti-icon">💰</div><div class="bti-value">₹'+tot.deposits+'</div><div class="bti-label">DEPOSITS</div></div>'+'<div class="big-total-item"><div class="bti-icon">💸</div><div class="bti-value">₹'+tot.withdrawals+'</div><div class="bti-label">WITHDRAWALS</div></div>'+'<div class="big-total-item"><div class="bti-icon">🎁</div><div class="bti-value">₹'+tot.redeem+'</div><div class="bti-label">REDEEM</div></div>'+'<div class="big-total-item"><div class="bti-icon">🎮</div><div class="bti-value">'+tot.matches+'</div><div class="bti-label">MATCHES</div></div>'+'<div class="big-total-item"><div class="bti-icon">📈</div><div class="bti-value">₹'+tot.revenue+'</div><div class="bti-label">REVENUE</div></div>';
+}
+
+function filterTx(type,val,el){
+if(type==='withdrawals')filterWd=val;
+if(type==='redeem_requests')filterRed=val;
+if(type==='deposits')filterDep=val;
+var row=el.parentElement;
+row.querySelectorAll('.chip').forEach(function(c){c.classList.remove('active');});
+el.classList.add('active');
+if(type==='withdrawals')renderWithdrawals();
+if(type==='redeem_requests')renderRedeems();
+if(type==='deposits')renderDeposits();
+}
+
+function renderWithdrawals(){
+var el=document.getElementById('withdrawalsList');
+var list=rawData.withdrawals.filter(function(w){return filterWd==='all'||w.status===filterWd;});
+if(list.length===0){el.innerHTML='<div class="empty-msg">No withdrawals</div>';return;}
+var h='';
+list.slice(0,100).forEach(function(w){
+h+='<div class="tx-item wd"><div class="tx-header"><span class="tx-amount wd">₹'+(w.amount||0)+'</span><span class="tx-status '+(w.status||'pending')+'">'+(w.status||'pending')+'</span></div><div class="tx-row"><span class="label">User:</span><span class="value">'+(w.userName||'-')+'</span></div><div class="tx-row"><span class="label">UPI:</span><span class="value" style="color:#ffa500">'+(w.upiId||'-')+'</span></div><div class="tx-row"><span class="label">Time:</span><span class="value">'+fmtTime(w.createdAt)+'</span></div></div>';
+});
+el.innerHTML=h;
+}
+
+function renderRedeems(){
+var el=document.getElementById('redeemsList');
+var list=rawData.redeems.filter(function(r){return filterRed==='all'||r.status===filterRed;});
+if(list.length===0){el.innerHTML='<div class="empty-msg">No redeems</div>';return;}
+var h='';
+list.slice(0,100).forEach(function(r){
+h+='<div class="tx-item red"><div class="tx-header"><span class="tx-amount red">🪙 '+(r.coins||0)+' coins</span><span class="tx-status '+(r.status||'pending')+'">'+(r.status||'pending')+'</span></div><div class="tx-row"><span class="label">Amount:</span><span class="value" style="color:#00e676">₹'+(r.amountINR||0)+'</span></div><div class="tx-row"><span class="label">User:</span><span class="value">'+(r.userName||'-')+'</span></div><div class="tx-row"><span class="label">Time:</span><span class="value">'+fmtTime(r.createdAt)+'</span></div></div>';
+});
+el.innerHTML=h;
+}
+
+function renderDeposits(){
+var el=document.getElementById('depositsList');
+var list=rawData.deposits.filter(function(d){return filterDep==='all'||d.status===filterDep;});
+if(list.length===0){el.innerHTML='<div class="empty-msg">No deposits</div>';return;}
+var h='';
+list.slice(0,100).forEach(function(d){
+h+='<div class="tx-item dep"><div class="tx-header"><span class="tx-amount dep">₹'+(d.amount||0)+'</span><span class="tx-status '+(d.status||'pending')+'">'+(d.status||'pending')+'</span></div><div class="tx-row"><span class="label">User:</span><span class="value">'+(d.userName||'-')+'</span></div><div class="tx-row"><span class="label">UTR:</span><span class="value" style="color:#ffa500">'+(d.utr||'-')+'</span></div><div class="tx-row"><span class="label">Time:</span><span class="value">'+fmtTime(d.createdAt)+'</span></div></div>';
+});
+el.innerHTML=h;
+}
+
+function renderSummaries(){
+var wdAll=rawData.withdrawals.length;
+var wdP=rawData.withdrawals.filter(function(w){return w.status==='pending';}).length;
+var wdPaid=rawData.withdrawals.filter(function(w){return w.status==='paid';}).length;
+var wdTot=0;rawData.withdrawals.forEach(function(w){if(w.status==='paid')wdTot+=(w.amount||0);});
+document.getElementById('wdSummary').innerHTML='<div class="big-total-item"><div class="bti-icon">📋</div><div class="bti-value">'+wdAll+'</div><div class="bti-label">TOTAL</div></div>'+'<div class="big-total-item"><div class="bti-icon">⏳</div><div class="bti-value">'+wdP+'</div><div class="bti-label">PENDING</div></div>'+'<div class="big-total-item"><div class="bti-icon">✅</div><div class="bti-value">'+wdPaid+'</div><div class="bti-label">PAID</div></div>'+'<div class="big-total-item"><div class="bti-icon">💰</div><div class="bti-value">₹'+wdTot+'</div><div class="bti-label">TOTAL PAID</div></div>';
+
+var rdAll=rawData.redeems.length;
+var rdP=rawData.redeems.filter(function(r){return r.status==='pending';}).length;
+var rdC=rawData.redeems.filter(function(r){return r.status==='completed';}).length;
+var rdT=0,rdCoins=0;rawData.redeems.forEach(function(r){if(r.status==='completed'){rdT+=(r.amountINR||0);rdCoins+=(r.coins||0);}});
+document.getElementById('redSummary').innerHTML='<div class="big-total-item"><div class="bti-icon">📋</div><div class="bti-value">'+rdAll+'</div><div class="bti-label">TOTAL</div></div>'+'<div class="big-total-item"><div class="bti-icon">⏳</div><div class="bti-value">'+rdP+'</div><div class="bti-label">PENDING</div></div>'+'<div class="big-total-item"><div class="bti-icon">✅</div><div class="bti-value">'+rdC+'</div><div class="bti-label">COMPLETED</div></div>'+'<div class="big-total-item"><div class="bti-icon">💰</div><div class="bti-value">₹'+rdT+'</div><div class="bti-label">VALUE</div></div>'+'<div class="big-total-item"><div class="bti-icon">🪙</div><div class="bti-value">'+rdCoins+'</div><div class="bti-label">COINS</div></div>';
+
+var dpAll=rawData.deposits.length;
+var dpP=rawData.deposits.filter(function(d){return d.status==='pending';}).length;
+var dpC=rawData.deposits.filter(function(d){return d.status==='completed'||d.status==='approved';}).length;
+var dpT=0;rawData.deposits.forEach(function(d){if(d.status==='completed'||d.status==='approved')dpT+=(d.amount||0);});
+document.getElementById('depSummary').innerHTML='<div class="big-total-item"><div class="bti-icon">📋</div><div class="bti-value">'+dpAll+'</div><div class="bti-label">TOTAL</div></div>'+'<div class="big-total-item"><div class="bti-icon">⏳</div><div class="bti-value">'+dpP+'</div><div class="bti-label">PENDING</div></div>'+'<div class="big-total-item"><div class="bti-icon">✅</div><div class="bti-value">'+dpC+'</div><div class="bti-label">COMPLETED</div></div>'+'<div class="big-total-item"><div class="bti-icon">💰</div><div class="bti-value">₹'+dpT+'</div><div class="bti-label">RECEIVED</div></div>';
+}
+
+loadAllData();
+</script>
+</body>
+</html>

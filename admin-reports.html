@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Reports - Prime Arena Admin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0f121d;color:#fff;font-family:Arial;padding-bottom:30px;min-height:100vh}
+.tb{display:flex;align-items:center;padding:15px;background:#0d1230;border-bottom:1px solid #2a2f4a;position:sticky;top:0;z-index:100;gap:10px}
+.bk{font-size:24px;cursor:pointer;color:#fff}
+.tt{font-size:15px;font-weight:bold;flex:1}
+.badge{background:linear-gradient(135deg,#ff6b00,#ffa500);font-size:9px;padding:3px 7px;border-radius:10px;font-weight:bold;margin-left:6px}
+.refresh-btn{background:#2a2f4a;border:none;color:#fff;padding:8px 12px;border-radius:6px;font-size:16px;cursor:pointer}
+.wrap{padding:15px}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:15px}
+.stat{background:#1a1f3a;border:1px solid #2a2f4a;border-radius:10px;padding:12px;text-align:center}
+.stat .lbl{font-size:9px;color:#666;margin-bottom:4px}
+.stat .val{font-size:20px;font-weight:bold}
+.stat.pending .val{color:#ffa500}
+.stat.banned .val{color:#ff3131}
+.stat.ignored .val{color:#666}
+.filters{display:flex;gap:6px;margin-bottom:15px;overflow-x:auto;padding-bottom:5px}
+.filter-btn{background:#1a1f3a;border:1px solid #2a2f4a;color:#aaa;padding:8px 14px;border-radius:20px;font-size:12px;font-weight:bold;cursor:pointer;white-space:nowrap}
+.filter-btn.active{background:linear-gradient(135deg,#ff6b00,#ffa500);color:#fff;border-color:#ffa500}
+.report-card{background:#1a1f3a;border:1px solid #2a2f4a;border-radius:12px;padding:15px;margin-bottom:12px;border-left:4px solid #ffa500}
+.report-card.banned{border-left-color:#ff3131}
+.report-card.ignored{border-left-color:#666;opacity:.7}
+.rc-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.rc-title{font-size:14px;font-weight:bold;color:#ffa500}
+.rc-status{font-size:9px;padding:3px 10px;border-radius:10px;font-weight:bold;text-transform:uppercase}
+.rc-status.pending{background:#ffa500;color:#fff}
+.rc-status.banned{background:#ff3131;color:#fff}
+.rc-status.ignored{background:#666;color:#fff}
+.rc-match{font-size:11px;color:#888;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #2a2f4a}
+.rc-section{background:#0a0e27;border-radius:8px;padding:10px;margin-bottom:8px}
+.rc-section-title{font-size:10px;color:#666;font-weight:bold;margin-bottom:6px;letter-spacing:.5px}
+.rc-row{display:flex;font-size:12px;margin-bottom:5px;line-height:1.5}
+.rc-row:last-child{margin-bottom:0}
+.rc-label{color:#888;width:100px;flex-shrink:0;font-size:11px}
+.rc-val{color:#fff;font-weight:bold;word-break:break-all;flex:1}
+.rc-val.ign{color:#ffa500}
+.rc-val.mobile{color:#00e676}
+.rc-val.reason{color:#ff3131}
+.rc-details{font-size:12px;color:#ccc;line-height:1.5;padding:8px;background:#0a0e27;border-radius:6px;margin-bottom:8px;white-space:pre-wrap}
+.rc-proof-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.proof-btn{display:flex;align-items:center;gap:6px;padding:8px 12px;background:#0a0e27;border:1px solid #2a2f4a;border-radius:8px;color:#ffa500;font-size:11px;font-weight:bold;cursor:pointer;text-decoration:none}
+.proof-btn:active{transform:scale(.97)}
+.proof-btn.video{color:#0088cc}
+.rc-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid #2a2f4a}
+.rc-btn{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-size:11px;font-weight:bold;cursor:pointer;color:#fff}
+.btn-ban{background:linear-gradient(135deg,#ff3131,#ff5252)}
+.btn-ignore{background:#2a2f4a}
+.btn-view{background:linear-gradient(135deg,#0088cc,#00aaff)}
+.btn-delete{background:#1a1f3a;border:1px solid #ff3131;color:#ff3131}
+.rc-btn:disabled{opacity:.5;cursor:not-allowed}
+.empty{text-align:center;padding:60px 20px;color:#666}
+.empty .ic{font-size:60px;opacity:.5;margin-bottom:15px}
+.empty .t1{font-size:15px;margin-bottom:5px}
+.empty .t2{font-size:12px;color:#444}
+.loading{text-align:center;color:#ffa500;padding:30px;font-size:14px}
+.image-modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.95);z-index:9999;justify-content:center;align-items:center;padding:15px}
+.image-modal.show{display:flex}
+.image-modal img{max-width:100%;max-height:90vh;object-fit:contain;border-radius:8px}
+.image-modal .close-img{position:absolute;top:20px;right:20px;background:#ff3131;color:#fff;border:none;width:40px;height:40px;border-radius:50%;font-size:20px;font-weight:bold;cursor:pointer;z-index:10}
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#00c853;color:#fff;padding:12px 25px;border-radius:25px;font-size:13px;font-weight:bold;display:none;z-index:9999;max-width:90%;text-align:center}
+.loading-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);display:none;justify-content:center;align-items:center;flex-direction:column;z-index:99999}
+.loading-overlay.show{display:flex}
+.spinner{width:60px;height:60px;border:5px solid #1a1f3a;border-top-color:#ffa500;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:20px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{color:#ffa500;font-size:14px;font-weight:bold}
+</style>
+</head>
+<body>
+<div class="tb">
+<div class="bk" onclick="location.href='admin.html'">←</div>
+<div class="tt">Player Reports<span class="badge">ADMIN</span></div>
+<button class="refresh-btn" onclick="loadReports()">↻</button>
+</div>
+
+<div class="wrap">
+<div class="stats">
+<div class="stat pending"><div class="lbl">PENDING</div><div class="val" id="statPending">0</div></div>
+<div class="stat banned"><div class="lbl">BANNED</div><div class="val" id="statBanned">0</div></div>
+<div class="stat ignored"><div class="lbl">IGNORED</div><div class="val" id="statIgnored">0</div></div>
+</div>
+
+<div class="filters">
+<button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+<button class="filter-btn" onclick="setFilter('pending',this)">Pending</button>
+<button class="filter-btn" onclick="setFilter('banned',this)">Banned</button>
+<button class="filter-btn" onclick="setFilter('ignored',this)">Ignored</button>
+</div>
+
+<div id="reportsList">
+<div class="loading">Loading reports...</div>
+</div>
+</div>
+
+<div class="image-modal" id="imageModal">
+<button class="close-img" onclick="closeImageModal()">×</button>
+<img id="modalImg" src="">
+</div>
+
+<div class="toast" id="toast">Success!</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+<div class="spinner"></div>
+<div class="loading-text" id="loadingText">Processing...</div>
+</div><script>
+var firebaseConfig={apiKey:"AIzaSyC22oO0eveUN3GL9WNtJSzdKghN-X67ZmU",authDomain:"prime-arena-a302b.firebaseapp.com",projectId:"prime-arena-a302b",storageBucket:"prime-arena-a302b.firebasestorage.app",messagingSenderId:"118236794000",appId:"1:118236794000:web:cd0e5bf7503b72f1cf5c15",measurementId:"G-EQJP1D9C92"};
+
+if(!firebase.apps||!firebase.apps.length)firebase.initializeApp(firebaseConfig);
+var db=firebase.firestore();
+var allReports=[];
+var currentFilter='all';
+
+function esc(s){
+if(s===undefined||s===null)return '';
+return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg,bg){
+var t=document.getElementById('toast');
+t.textContent=msg;
+t.style.background=bg||'#00c853';
+t.style.display='block';
+setTimeout(function(){t.style.display='none';t.style.background='#00c853';},3000);
+}
+
+function showLoading(text){
+document.getElementById('loadingText').textContent=text||'Processing...';
+document.getElementById('loadingOverlay').classList.add('show');
+}
+function hideLoading(){
+document.getElementById('loadingOverlay').classList.remove('show');
+}
+
+function showConfirm(title,msg,onYes){
+var p=document.createElement('div');
+p.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);display:flex;justify-content:center;align-items:center;z-index:99999;padding:20px';
+var b=document.createElement('div');
+b.style.cssText='background:#1a1f3a;border-radius:15px;padding:25px;width:100%;max-width:350px;border:1px solid #ffa500';
+b.innerHTML='<div style="font-size:18px;font-weight:bold;color:#ffa500;margin-bottom:12px;text-align:center">'+esc(title)+'</div><div style="font-size:14px;color:#ccc;line-height:1.5;margin-bottom:20px;text-align:center">'+esc(msg)+'</div>';
+var row=document.createElement('div');row.style.cssText='display:flex;gap:10px';
+var cancelBtn=document.createElement('button');
+cancelBtn.textContent='CANCEL';
+cancelBtn.style.cssText='flex:1;padding:14px;background:#2a2f4a;border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:bold;cursor:pointer';
+cancelBtn.onclick=function(){document.body.removeChild(p);};
+var yesBtn=document.createElement('button');
+yesBtn.textContent='CONFIRM';
+yesBtn.style.cssText='flex:1;padding:14px;background:linear-gradient(135deg,#00c853,#00e676);border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:bold;cursor:pointer';
+yesBtn.onclick=function(){document.body.removeChild(p);if(onYes)onYes();};
+row.appendChild(cancelBtn);
+row.appendChild(yesBtn);
+b.appendChild(row);
+p.appendChild(b);
+document.body.appendChild(p);
+}
+
+function formatDate(iso){
+if(!iso)return '-';
+try{
+var d=new Date(iso);
+var dd=d.getDate().toString().padStart(2,'0');
+var mm=(d.getMonth()+1).toString().padStart(2,'0');
+var yy=d.getFullYear();
+var hh=d.getHours().toString().padStart(2,'0');
+var mn=d.getMinutes().toString().padStart(2,'0');
+return dd+'/'+mm+'/'+yy+' '+hh+':'+mn;
+}catch(e){return iso;}
+}
+
+function loadReports(){
+document.getElementById('reportsList').innerHTML='<div class="loading">Loading reports...</div>';
+db.collection('reports').get().then(function(snap){
+allReports=[];
+snap.forEach(function(doc){
+var d=doc.data();
+d.id=doc.id;
+allReports.push(d);
+});
+allReports.sort(function(a,b){
+return new Date(b.createdAt||0)-new Date(a.createdAt||0);
+});
+updateStats();
+displayReports();
+}).catch(function(e){
+document.getElementById('reportsList').innerHTML='<div class="empty"><div class="ic">X</div><div class="t1">Error: '+esc(e.message)+'</div></div>';
+});
+}
+
+function updateStats(){
+var pending=0,banned=0,ignored=0;
+allReports.forEach(function(r){
+if(r.status==='pending'||!r.status)pending++;
+else if(r.status==='banned')banned++;
+else if(r.status==='ignored')ignored++;
+});
+document.getElementById('statPending').textContent=pending;
+document.getElementById('statBanned').textContent=banned;
+document.getElementById('statIgnored').textContent=ignored;
+}
+
+function setFilter(f,el){
+currentFilter=f;
+document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active');});
+el.classList.add('active');
+displayReports();
+}
+
+function displayReports(){
+var list=document.getElementById('reportsList');
+var filtered=allReports.filter(function(r){
+if(currentFilter==='all')return true;
+if(currentFilter==='pending')return !r.status||r.status==='pending';
+return r.status===currentFilter;
+});
+
+if(filtered.length===0){
+list.innerHTML='<div class="empty"><div class="ic">-</div><div class="t1">No reports found</div><div class="t2">Reports will appear here when players submit them</div></div>';
+return;
+}
+
+var html='';
+filtered.forEach(function(r){
+var status=r.status||'pending';
+var cardClass=status==='banned'?'banned':(status==='ignored'?'ignored':'');
+
+var proofBtns='';
+var hasImg=r.screenshot&&r.screenshot.length>200;
+if(hasImg){
+proofBtns+='<button class="proof-btn" onclick="viewScreenshot(\''+r.id+'\')">View Screenshot</button>';
+}
+if(r.videoLink){
+proofBtns+='<a class="proof-btn video" href="'+esc(r.videoLink)+'" target="_blank">Open Video Link</a>';
+}
+if(!proofBtns){
+proofBtns='<div style="font-size:11px;color:#666;padding:6px 0;">No proof attached</div>';
+}
+
+var actions='';
+if(status==='pending'){
+actions='<button class="rc-btn btn-view" onclick="viewPlayerSlots(\''+esc(r.matchId)+'\')">View Match</button>'+
+'<button class="rc-btn btn-ban" onclick="banPlayer(\''+r.id+'\')">Ban Player</button>'+
+'<button class="rc-btn btn-ignore" onclick="ignoreReport(\''+r.id+'\')">Ignore</button>';
+}else if(status==='banned'){
+actions='<button class="rc-btn btn-view" onclick="viewPlayerSlots(\''+esc(r.matchId)+'\')">View Match</button>'+
+'<button class="rc-btn btn-ignore" onclick="unbanPlayer(\''+r.id+'\')">Unban</button>';
+}else{
+actions='<button class="rc-btn btn-view" onclick="viewPlayerSlots(\''+esc(r.matchId)+'\')">View Match</button>'+
+'<button class="rc-btn btn-delete" onclick="deleteReport(\''+r.id+'\')">Delete Report</button>';
+}
+
+html+='<div class="report-card '+cardClass+'">'+
+'<div class="rc-head">'+
+'<div class="rc-title">'+esc(r.matchTitle||'Unknown Match')+'</div>'+
+'<div class="rc-status '+status+'">'+status+'</div>'+
+'</div>'+
+'<div class="rc-match">Reported on: '+formatDate(r.createdAt)+'</div>'+
+
+'<div class="rc-section">'+
+'<div class="rc-section-title">REPORTED PLAYER</div>'+
+'<div class="rc-row"><div class="rc-label">Slot #</div><div class="rc-val">#'+esc(r.reportedSlot)+'</div></div>'+
+'<div class="rc-row"><div class="rc-label">Free Fire IGN</div><div class="rc-val ign">'+esc(r.reportedIgn||'N/A')+'</div></div>'+
+'<div class="rc-row"><div class="rc-label">Real Name</div><div class="rc-val">'+esc(r.reportedName||'N/A')+'</div></div>'+
+'<div class="rc-row"><div class="rc-label">Mobile</div><div class="rc-val mobile">'+esc(r.reportedMobile||'N/A')+'</div></div>'+
+'</div>'+
+
+'<div class="rc-section">'+
+'<div class="rc-section-title">REPORTED BY</div>'+
+'<div class="rc-row"><div class="rc-label">Reporter</div><div class="rc-val">'+esc(r.reporterName||'Unknown')+'</div></div>'+
+'<div class="rc-row"><div class="rc-label">Email</div><div class="rc-val">'+esc(r.reporterEmail||'N/A')+'</div></div>'+
+'</div>'+
+
+'<div class="rc-section">'+
+'<div class="rc-section-title">REASON</div>'+
+'<div class="rc-row"><div class="rc-val reason">'+esc(r.reason||'Not specified')+'</div></div>'+
+'</div>'+
+
+(r.details?'<div class="rc-details"><b style="color:#ffa500">Details:</b> '+esc(r.details)+'</div>':'')+
+
+'<div class="rc-proof-row">'+proofBtns+'</div>'+
+
+'<div class="rc-actions">'+actions+'</div>'+
+'</div>';
+});
+
+list.innerHTML=html;
+}
+
+function viewScreenshot(id){
+var r=allReports.find(function(x){return x.id===id;});
+if(!r||!r.screenshot||r.screenshot.length<100){
+showToast('No screenshot in this report','#ff3131');
+return;
+}
+var imgSrc=r.screenshot;
+if(imgSrc.indexOf('data:')!==0){
+imgSrc='data:image/jpeg;base64,'+imgSrc;
+}
+document.getElementById('modalImg').src=imgSrc;
+document.getElementById('imageModal').classList.add('show');
+}
+
+function closeImageModal(){
+document.getElementById('imageModal').classList.remove('show');
+}
+
+function viewPlayerSlots(matchId){
+if(!matchId){showToast('Match ID missing','#ff3131');return;}
+try{localStorage.setItem('selectedMatchId',matchId);}catch(e){}
+window.location.href='admin-match-slots.html?id='+encodeURIComponent(matchId);
+}
+
+function banPlayer(reportId){
+var r=allReports.find(function(x){return x.id===reportId;});
+if(!r){showToast('Report not found','#ff3131');return;}
+var playerName=r.reportedIgn||r.reportedName||'this player';
+showConfirm('Ban Player?','Are you sure you want to BAN "'+playerName+'"? They will not be able to login again.',function(){
+showLoading('Banning player...');
+var updates=[];
+if(r.reportedUserId){
+updates.push(db.collection('users').doc(r.reportedUserId).update({
+isBlocked:true,
+blockedAt:new Date().toISOString(),
+blockedReason:r.reason||'Cheating',
+blockedFromReport:reportId
+}));
+}
+updates.push(db.collection('reports').doc(reportId).update({
+status:'banned',
+actionTakenAt:new Date().toISOString(),
+actionBy:'admin'
+}));
+if(r.reportedIgn){
+updates.push(db.collection('blacklist').add({
+ffIgn:r.reportedIgn,
+mobile:r.reportedMobile||'',
+userId:r.reportedUserId||'',
+reason:r.reason||'Cheating',
+bannedAt:new Date().toISOString()
+}));
+}
+Promise.all(updates).then(function(){
+hideLoading();
+showToast('Player banned successfully!','linear-gradient(135deg,#ff3131,#ff5252)');
+loadReports();
+}).catch(function(e){
+hideLoading();
+showToast('Error: '+e.message,'#ff3131');
+});
+});
+}
+
+function unbanPlayer(reportId){
+var r=allReports.find(function(x){return x.id===reportId;});
+if(!r)return;
+if(!r.reportedUserId){showToast('User ID missing','#ff3131');return;}
+showConfirm('Unban Player?','Are you sure you want to unban this player?',function(){
+showLoading('Unbanning player...');
+db.collection('users').doc(r.reportedUserId).update({
+isBlocked:false,
+unblockedAt:new Date().toISOString()
+}).then(function(){
+return db.collection('reports').doc(reportId).update({
+status:'ignored',
+actionTakenAt:new Date().toISOString(),
+actionBy:'admin'
+});
+}).then(function(){
+hideLoading();
+showToast('Player unbanned!');
+loadReports();
+}).catch(function(e){
+hideLoading();
+showToast('Error: '+e.message,'#ff3131');
+});
+});
+}
+
+function ignoreReport(reportId){
+showConfirm('Ignore Report?','Are you sure you want to ignore this report?',function(){
+showLoading('Updating...');
+db.collection('reports').doc(reportId).update({
+status:'ignored',
+actionTakenAt:new Date().toISOString(),
+actionBy:'admin'
+}).then(function(){
+hideLoading();
+showToast('Report ignored!');
+loadReports();
+}).catch(function(e){
+hideLoading();
+showToast('Error: '+e.message,'#ff3131');
+});
+});
+}
+
+function deleteReport(reportId){
+showConfirm('Delete Report?','Are you sure you want to permanently delete this report?',function(){
+showLoading('Deleting...');
+db.collection('reports').doc(reportId).delete().then(function(){
+hideLoading();
+showToast('Report deleted!');
+loadReports();
+}).catch(function(e){
+hideLoading();
+showToast('Error: '+e.message,'#ff3131');
+});
+});
+}
+
+document.addEventListener('click',function(e){
+var modal=document.getElementById('imageModal');
+if(e.target===modal){closeImageModal();}
+});
+
+loadReports();
+</script>
+</body>
+</html>
